@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="FactoryClassic.Tests/FactoryClassic.Tests.csproj" />
+  <Project Path="FactoryClassic.Client/FactoryClassic.Client.csproj" />
+  <Project Path="FactoryClassic.Server/FactoryClassic.Server.csproj" />
+</Solution>
