@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="SPTarkov.Server.Core" Version="4.1.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\FactoryClassic.Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- The loot transform is server-side but pure, so it is exercised here against the real tables. -->
+  <ItemGroup>
+    <ProjectReference Include="..\FactoryClassic.Server\FactoryClassic.Server.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,85 @@
+# Quests the classic tile cannot satisfy
+
+## The finding
+
+A quest objective like "place a beacon" fires off a trigger zone, and a trigger zone is a GameObject
+baked into a scene. The classic Factory scenes were authored before those quests existed, so the
+zones are not in them. Not disabled, not misplaced: absent.
+
+Comparing every `zoneId` in `templates/quests.json` against both tiles' scene files:
+
+| | zones found |
+|---|---|
+| on the tile 4.1 ships | 24 |
+| on the classic tile | 6 |
+| on both | 6 |
+| **only on the tile 4.1 ships** | **18** |
+
+Nothing is classic-only, so no quest breaks in the other direction.
+
+Those 18 zones belong to six quests:
+
+| quest | zones |
+|---|---|
+| Is This a Reference | 7 |
+| Black Swan | 3 |
+| Capacity Check | 3 |
+| The Walls Have Eyes | 3 |
+| Radical Treatment | 1 |
+| Secrets of Polikhim | 1 |
+
+Regenerate with `python analysis/find_original_only_quests.py`, which writes
+`FactoryClassic.Server/db/quest-gate.json`.
+
+### Why the evidence holds
+
+Zone ids are searched for as length-prefixed UTF-8 strings in the level files. A raw byte search of a
+stripped scene cannot tell a live trigger from a dead string, so on its own it proves nothing. What
+makes it sound is running the identical search against **both** tiles: a zone found on one and not
+the other cannot be an artefact of the method.
+
+It still has a noise floor, set by how long the needle is. A one-character zone id is a five-byte
+needle and hits by chance in any file this size, so ids shorter than five characters are reported and
+skipped rather than trusted. The database holds exactly one (`"1"`), it names no Factory trigger, and
+dropping it left the 18-zone result unchanged.
+
+## Why blocking rather than fixing
+
+The alternative was to graft replacement zones into the classic scenes. That means deciding where on
+a 2018 map BSG would have put a 2024 quest marker, and a guess that is nearly right is worse than an
+absence: the player finds the zone, plants the item, and the objective still reads wrong because the
+quest text describes somewhere that tile does not have.
+
+## What the gate does
+
+`questGate` in the server config.
+
+- **`warn`** (default). Before a classic raid loads, the map prompt names any of the six the player
+  has **already accepted**, and the accept button reads CONFIRM rather than NEXT. Nothing is blocked:
+  the player is told, and decides.
+- **`hide`** also keeps them off the trader board, so the situation does not arise. Only while
+  classic is in play for **both** Factory locations, because a player running classic days and
+  vanilla nights can still finish them at night. Never applied to a quest already accepted.
+- **`off`** says nothing.
+
+### The boundary
+
+**An accepted quest is never hidden, never failed, never rewritten, and the mod never writes to a
+profile.** Everything above is either a message or a filter on one response. A player who ignores the
+warning loses nothing: the quest sits in their list and completes on Factory - Vanilla whenever they
+go back.
+
+`hide` takes effect the next time the client asks for its quest list, not the instant the choice is
+made, because that is when the server gets to answer.
+
+## Keeping the list honest
+
+`db/quest-gate.json` is committed rather than derived at boot, so the list is reviewable and a change
+shows up as a diff. The cost is that it can go stale, and `QuestGateTableTests` is what makes going
+stale loud. Against the live quest table it asserts that every gated quest still exists under the same
+id, still carries the name shown to players, and still names every zone it is gated on. At runtime
+`QuestGateTable` drops any entry whose quest has disappeared and logs it, so the gate under-reports
+rather than hides a quest that is now fine.
+
+`QuestGatePolicyTests` separately asserts our mirrored copy of SPT's `QuestStatusEnum` against the
+real one, so a renumber upstream fails the build instead of silently regrading every quest.
