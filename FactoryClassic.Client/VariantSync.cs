@@ -18,6 +18,8 @@ namespace FactoryClassic.Client
         // every GET.
         const string HostRoute = "/factoryclassic/hostvariant";
 
+        const string ClaimRoute = "/factoryclassic/transitclaim";
+
         internal static void Post(string locationId, string variant)
         {
             try
@@ -29,6 +31,29 @@ namespace FactoryClassic.Client
             catch (Exception e)
             {
                 Plugin.Log.LogWarning($"[Variant] could not post '{variant}': {e.GetType().Name}: {e.Message}");
+            }
+        }
+
+        // Claims a variant for a transit's destination. First caller wins; the answer is what the
+        // group is going to, which is not necessarily what was offered.
+        internal static string Claim(string locationId, string variant, out string outcome)
+        {
+            outcome = null;
+            try
+            {
+                var body = new JObject { ["locationId"] = locationId, ["variant"] = variant }.ToString();
+                var json = RequestHandler.PostJson(ClaimRoute, body);
+                if (string.IsNullOrWhiteSpace(json)) return null;
+
+                var answer = JObject.Parse(json);
+                var winner = answer["variant"]?.ToString();
+                outcome = answer["outcome"]?.ToString();
+                return string.IsNullOrWhiteSpace(winner) ? null : MapVariant.Normalise(winner);
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning($"[Variant] could not claim '{variant}' for '{locationId}': {e.GetType().Name}: {e.Message}");
+                return null;
             }
         }
 

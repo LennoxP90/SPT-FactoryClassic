@@ -48,6 +48,35 @@ public class SpawnPointDivergenceTests
         return File.Exists(path) ? JsonSerializer.Deserialize<LocationBase>(File.ReadAllText(path), SptJson) : null;
     }
 
+    // A bot spawn point that names no zone gives its bot no patrol graph, and the 3.9.8 tables name
+    // none at all. Observed as a whole raid of bots standing where they spawned, with Tagilla the one
+    // exception - and his BossLocationSpawn is the one entry that names BotZone explicitly.
+    //
+    // The zone exists in the classic scene: Factory_AI.unity carries a single BotZone, named BotZone,
+    // which is the name the shipped tables use for the same map.
+    [Theory]
+    [InlineData("factory4_day")]
+    [InlineData("factory4_night")]
+    public void EveryBotSpawnPointNamesTheZoneTheSceneCarries(string map)
+    {
+        var bot = Classic(map).SpawnPointParams!
+            .Where(s => s.Categories != null && s.Categories.Count() == 1 && s.Categories.First() == "Bot")
+            .ToList();
+
+        Assert.Equal(19, bot.Count);
+        Assert.All(bot, s => Assert.Equal("BotZone", s.BotZoneName));
+
+        var vanilla = Vanilla(map);
+        if (vanilla is null) return;   // no clean install on this machine
+
+        // The shipped tile is the authority on what the zone is called.
+        var shipped = vanilla.SpawnPointParams!
+            .Where(s => s.Categories != null && s.Categories.Contains("Bot"))
+            .Select(s => s.BotZoneName)
+            .Distinct()
+            .ToList();
+        Assert.Equal(new[] { "BotZone" }, shipped);
+    }
     [Theory]
     [InlineData("factory4_day")]
     [InlineData("factory4_night")]

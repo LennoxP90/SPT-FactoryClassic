@@ -15,6 +15,8 @@ namespace FactoryClassic.Client
             {
                 if (!FactoryScenes.IsFactoryScene(scene.name)) return;
                 PresetSwap.ForgetChoice();
+                TransitVariantClaim.Forget();
+                CameraInventory.Forget();
             };
             Plugin.Log.LogInfo("[Lifecycle] armed");
         }

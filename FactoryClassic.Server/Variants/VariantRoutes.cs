@@ -25,6 +25,9 @@ public sealed class VariantChoiceRequest : IRequestData
 public sealed class VariantChoiceResponse
 {
     [JsonPropertyName("variant")] public string Variant { get; set; } = MapVariant.Original;
+
+    // Claimed, Changed or Joined - so the client can say whether the player decided or inherited.
+    [JsonPropertyName("outcome")] public string Outcome { get; set; } = "";
 }
 
 // POST records the choice a player made on the map screen; GET reads one back. A Fika headless uses
@@ -37,6 +40,7 @@ public class VariantRoutes(
     JsonUtil jsonUtil,
     HttpResponseUtil httpResponseUtil,
     VariantChoiceStore choiceStore,
+    TransitClaimStore transitClaims,
     VariantRegistry registry,
     IHttpContextAccessor httpContextAccessor,
     ISptLogger<VariantRoutes> logger
@@ -46,7 +50,12 @@ public class VariantRoutes(
         new RouteAction<VariantChoiceRequest>(
             "/factoryclassic/variant",
             (url, info, sessionId, output, cancellationToken) =>
-                ValueTask.FromResult(Record(info, sessionId, choiceStore, registry, httpResponseUtil, logger))),
+                ValueTask.FromResult(Record(info, sessionId, choiceStore, transitClaims, registry, httpResponseUtil, logger))),
+
+        new RouteAction<VariantChoiceRequest>(
+            "/factoryclassic/transitclaim",
+            (url, info, sessionId, output, cancellationToken) =>
+                ValueTask.FromResult(ClaimTransit(info, sessionId, transitClaims, registry, httpResponseUtil, logger))),
 
         new RouteAction<EmptyRequestData>(
             "/factoryclassic/hostvariant",
@@ -57,7 +66,8 @@ public class VariantRoutes(
 {
     private static string Record(
         VariantChoiceRequest? info, MongoId sessionId, VariantChoiceStore choiceStore,
-        VariantRegistry registry, HttpResponseUtil httpResponseUtil, ISptLogger<VariantRoutes> logger)
+        TransitClaimStore transitClaims, VariantRegistry registry, HttpResponseUtil httpResponseUtil,
+        ISptLogger<VariantRoutes> logger)
     {
         var locationId = (info?.LocationId ?? "").Trim().ToLowerInvariant();
         var variant = MapVariant.Normalise(info?.Variant);
@@ -65,6 +75,9 @@ public class VariantRoutes(
         if (locationId.Length == 0 || !registry.HasClassic(locationId))
             return httpResponseUtil.NoBody(new VariantChoiceResponse { Variant = MapVariant.Original });
 
+        // An explicit pick on the map screen outranks a claim inherited from a transit, so the claim
+        // goes rather than being preferred by the next raid-start route.
+        transitClaims.Release(locationId);
         choiceStore.Record(sessionId, locationId, variant);
 
         // Installed HERE, the moment the choice is made, rather than at raid start. This POST lands
@@ -76,16 +89,48 @@ public class VariantRoutes(
         return httpResponseUtil.NoBody(new VariantChoiceResponse { Variant = variant });
     }
 
+    // First player into a transit zone decides the variant for everyone who joins it. A transit has
+    // no map screen, so without this nobody is prompted and each client falls back on its own stale
+    // preference - which on Fika means one player loading different scenes from the ones served.
+    private static string ClaimTransit(
+        VariantChoiceRequest? info, MongoId sessionId, TransitClaimStore transitClaims,
+        VariantRegistry registry, HttpResponseUtil httpResponseUtil, ISptLogger<VariantRoutes> logger)
+    {
+        var locationId = (info?.LocationId ?? "").Trim().ToLowerInvariant();
+
+        if (locationId.Length == 0 || !registry.HasClassic(locationId))
+            return httpResponseUtil.NoBody(new VariantChoiceResponse { Variant = MapVariant.Original });
+
+        var winner = transitClaims.Claim(locationId, info?.Variant, sessionId.ToString(), out var outcome);
+
+        // Installed as soon as it is claimed, which is while the transit is still counting down -
+        // far earlier than the map-screen POST manages, and well before the destination raid is built.
+        if (outcome != TransitClaimStore.Outcome.Joined)
+        {
+            registry.Install(locationId, winner);
+            logger.Info($"[FC] {sessionId} {(outcome == TransitClaimStore.Outcome.Changed ? "changed the transit to" : "claimed")} "
+                        + $"'{winner}' for '{locationId}'");
+        }
+        else
+        {
+            logger.Debug($"[FC] {sessionId} joined a transit to '{locationId}' already claimed as '{winner}'");
+        }
+
+        return httpResponseUtil.NoBody(new VariantChoiceResponse { Variant = winner, Outcome = outcome.ToString() });
+    }
+
     private static string Read(
         HttpRequest? request, MongoId sessionId, VariantChoiceStore choiceStore,
         VariantRegistry registry, HttpResponseUtil httpResponseUtil)
     {
         var locationId = (request?.Query["locationId"].ToString() ?? "").Trim().ToLowerInvariant();
 
-        var variant = VariantResolution.Resolve(
-            choiceStore.ChoiceFor(sessionId, locationId),
-            choiceStore.LatestFor(locationId),
-            registry.ConfiguredDefault);
+        // What the table is actually serving, rather than a per-session re-derivation of what it
+        // ought to be. One source of truth: a Fika joiner and a headless both load the scenes that
+        // match the data the server is about to hand them, which re-resolving could not guarantee.
+        var variant = registry.HasClassic(locationId)
+            ? registry.InstalledVariant(locationId)
+            : MapVariant.Original;
 
         return httpResponseUtil.NoBody(new VariantChoiceResponse { Variant = variant });
     }

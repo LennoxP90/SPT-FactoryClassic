@@ -9,7 +9,7 @@ This mod points the preset at them instead, and serves the matching loot, spawn 
 
 Because it ships no assets at all, the whole mod is two DLLs and some JSON.
 
-> **0.1.0 is a beta.** Everything here is played and working, but by few people on one server.
+> **0.2.0 is a beta.** Everything here is played and working, but by few people on one server.
 > Please report anything odd rather than assuming it is meant to be that way - see
 > [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
 

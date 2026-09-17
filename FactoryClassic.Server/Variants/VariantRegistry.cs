@@ -111,12 +111,27 @@ public class VariantRegistry(
 
     // Read back through the accessor SPT itself uses, so it reports where SPT actually reads rather
     // than what we believe we installed.
+    // The wire value of whatever the table is serving. Read by reference against the two datasets, so
+    // it reports what is actually installed rather than what was last asked for.
+    //
+    // Kept separate from Installed(), which is a sentence for a log line: handing that to a client as
+    // a variant sent every transit and every headless to the shipped map, because
+    // "CLASSIC, 120 spawn point(s)..." normalises to "original".
+    public string InstalledVariant(string locationId)
+        => IsServingClassic(locationId) ? MapVariant.Classic : MapVariant.Original;
+
+    private bool IsServingClassic(string locationId)
+    {
+        var live = locationTable.GetLocation(locationId);
+        return live is not null && ReferenceEquals(live, _classic.GetValueOrDefault(locationId));
+    }
+
     public string Installed(string locationId)
     {
         var live = locationTable.GetLocation(locationId);
         if (live is null) return "no location in the table";
 
-        var which = ReferenceEquals(live, _classic.GetValueOrDefault(locationId)) ? "CLASSIC"
+        var which = IsServingClassic(locationId) ? "CLASSIC"
                   : ReferenceEquals(live, _vanilla.GetValueOrDefault(locationId)) ? "VANILLA"
                   : "NEITHER - something else replaced it";
         return $"{which}, {live.Base?.SpawnPointParams?.Count() ?? -1} spawn point(s), {live.Base?.Exits?.Count() ?? -1} exit(s)";

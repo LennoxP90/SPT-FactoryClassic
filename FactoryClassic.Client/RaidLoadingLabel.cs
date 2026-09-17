@@ -44,7 +44,10 @@ namespace FactoryClassic.Client
                 // Both variants are named, not just ours. Labelling only the added tile made the
                 // shipped one look like an unmodded raid, so a player who picked the wrong one had
                 // nothing to tell them.
-                var variant = PresetSwap.SessionChoice ?? Plugin.DefaultVariant;
+                // Asked of the server when nobody chose on a map screen, which is every transit. The
+                // configured default is only a last resort: using it as the fallback labelled every
+                // transit with this player's preference rather than with what the raid is loading.
+                var variant = PresetSwap.SessionChoice ?? VariantSync.Ask(locationId) ?? Plugin.DefaultVariant;
                 var suffix = MapVariant.IsClassic(variant) ? ClassicSuffix : VanillaSuffix;
 
                 var text = label.text ?? "";

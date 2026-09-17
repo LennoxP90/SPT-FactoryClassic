@@ -4,6 +4,7 @@ using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using UnityEngine;
 
 namespace FactoryClassic.Client
 {
@@ -17,9 +18,8 @@ namespace FactoryClassic.Client
         internal static ConfigEntry<FactoryChoice> DefaultSelection;
         internal static ConfigEntry<bool> SpatialRouting;
         internal static ConfigEntry<bool> WirePortals;
-        internal static ConfigEntry<bool> ExceptionLog;
-        internal static ConfigEntry<bool> BotReport;
-        internal static ConfigEntry<bool> FrameSplitProbe;
+        internal static ConfigEntry<bool> CameraReport;
+        internal static ConfigEntry<bool> RepairLootClusters;
 
         // The configured fallback as a Shared wire value. Read at the point of use, never cached, so
         // an edit picked up by ConfigReload actually applies.
@@ -37,6 +37,11 @@ namespace FactoryClassic.Client
             Safe(nameof(RaidLifecycle), RaidLifecycle.Install);
             Safe(nameof(SpatialAudioRepair), SpatialAudioRepair.Install);
             Safe(nameof(CameraEffectsRepair), CameraEffectsRepair.Install);
+            Safe(nameof(CameraInventory), CameraInventory.Install);
+            Safe(nameof(LootClusterRepair), LootClusterRepair.Install);
+            Safe(nameof(TransitRepair), TransitRepair.Install);
+            Safe(nameof(TransitVariantClaim), TransitVariantClaim.Install);
+            Safe(nameof(TransitChoicePrompt), TransitChoicePrompt.Install);
             Safe(nameof(WaypointsStandDown), WaypointsStandDown.Install);
             Safe(nameof(MapVariantPrompt), MapVariantPrompt.Install);
             Safe(nameof(RaidLoadingLabel), RaidLoadingLabel.Install);
@@ -69,14 +74,15 @@ namespace FactoryClassic.Client
                 + "either side of the portal's own collider. Without this they are acoustically absent, so sound does "
                 + "not carry through the openings they sit in - several of them gates - and a door whose portal is "
                 + "unwired throws inside its own opening animation.", 5));
-
-            ExceptionLog = Config.Bind("Diagnostics", "ExceptionLog", true, Hidden(
-                "Mirror Unity errors and exceptions into this log, the first in full and the rest as counts. BepInEx ships "
-                + "WriteUnityLog=false, so without this the exception that cancels a raid never reaches the log."));
-            BotReport = Config.Bind("Diagnostics", "BotReport", false, Hidden(
-                "Log each live bot with its role, zone, navmesh status and health, four times per raid. For bug reports about bots."));
-            FrameSplitProbe = Config.Bind("Diagnostics", "FrameSplitProbe", false, Hidden(
-                "Log the scripts / camera / present split of frame time every 10 s in raid."));
+
+            RepairLootClusters = Config.Bind("General", "RepairLootClusters", true, Shown(
+                "Give the classic tile's loot clusters the connection group and Bot Zone the scene never recorded. Without "
+                + "this the loot-patrol layer can never choose a target and every bot stands on the nearest cover point for "
+                + "the whole raid. Off restores the shipped data, for comparison only.", 26));
+            CameraReport = Config.Bind("Diagnostics", "CameraReport", true, Hidden(
+                "Once per Factory raid, log what the render camera and its effects prefab carry, plus the texture "
+                + "streaming globals. Open while the classic tile's dated look is being diagnosed: the answer is the "
+                + "diff between a classic raid and a vanilla one."));
         }
 
         // ConfigurationManager reads Browsable off the tag object by duck typing, so hiding an entry

@@ -32,6 +32,7 @@
     <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(SptManaged)\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
     <!-- BaseSpatialAudioPortal.portalCollider is a BoxCollider. -->
     <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(SptManaged)\UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AIModule"><HintPath>$(SptManaged)\UnityEngine.AIModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.AudioModule"><HintPath>$(SptManaged)\UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
     <!-- AudioPortalData's fields are float3/float2, so building one needs the maths assembly. -->
     <Reference Include="Unity.Mathematics"><HintPath>$(SptManaged)\Unity.Mathematics.dll</HintPath><Private>false</Private></Reference>

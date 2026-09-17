@@ -41,6 +41,7 @@ public class VariantRaidHooks(
     JsonUtil jsonUtil,
     VariantRegistry registry,
     VariantChoiceStore choiceStore,
+    TransitClaimStore transitClaims,
     ISptLogger<VariantRaidHooks> logger)
     : StaticRouter(jsonUtil,
     [
@@ -48,32 +49,41 @@ public class VariantRaidHooks(
         // is the one that matters on a Fika host; a headless posts it too.
         new RouteAction<RaidBoundaryRequest>("/client/raid/configuration",
             (url, info, sessionId, output, cancellationToken) =>
-                OnRaidStart(info, sessionId, output, registry, choiceStore, logger)),
+                OnRaidStart(info, sessionId, output, registry, choiceStore, transitClaims, logger)),
 
         new RouteAction<RaidBoundaryRequest>("/client/match/local/start",
             (url, info, sessionId, output, cancellationToken) =>
-                OnRaidStart(info, sessionId, output, registry, choiceStore, logger)),
+                OnRaidStart(info, sessionId, output, registry, choiceStore, transitClaims, logger)),
 
         new RouteAction<RaidBoundaryRequest>("/client/match/local/end",
             (url, info, sessionId, output, cancellationToken) =>
-                OnRaidEnd(info, output, registry, logger)),
+                OnRaidEnd(info, output, registry, transitClaims, logger)),
     ])
 {
     private static ValueTask<string> OnRaidStart(
         RaidBoundaryRequest? info, MongoId sessionId, string output,
-        VariantRegistry registry, VariantChoiceStore choiceStore, ISptLogger<VariantRaidHooks> logger)
+        VariantRegistry registry, VariantChoiceStore choiceStore, TransitClaimStore transitClaims,
+        ISptLogger<VariantRaidHooks> logger)
     {
         var locationId = Normalise(info?.Location);
         if (locationId.Length > 0 && registry.HasClassic(locationId))
         {
             try
             {
+                // A live transit claim outranks everything: the raid is being arrived at rather than
+                // chosen, and the first player into the zone already decided for the whole group. Both
+                // raid-start routes run, so this has to be preferred on every call or the second would
+                // re-resolve and overwrite the first.
+                var claimed = transitClaims.Held(locationId);
+
                 // A Fika headless posts this route under its OWN session, so it has no choice of its
                 // own and inherits the last one made for the location.
-                var variant = VariantResolution.Resolve(
-                    choiceStore.ChoiceFor(sessionId, locationId),
-                    choiceStore.LatestFor(locationId),
-                    registry.ConfiguredDefault);
+                var variant = claimed.Length > 0
+                    ? claimed
+                    : VariantResolution.Resolve(
+                        choiceStore.ChoiceFor(sessionId, locationId),
+                        choiceStore.LatestFor(locationId),
+                        registry.ConfiguredDefault);
 
                 registry.Install(locationId, variant);
                 logger.Info($"[FC] raid on '{locationId}': {(MapVariant.IsClassic(variant) ? "the CLASSIC tile" : "the shipped tile")}; "
@@ -89,11 +99,15 @@ public class VariantRaidHooks(
     }
 
     private static ValueTask<string> OnRaidEnd(
-        RaidBoundaryRequest? info, string output, VariantRegistry registry, ISptLogger<VariantRaidHooks> logger)
+        RaidBoundaryRequest? info, string output, VariantRegistry registry,
+        TransitClaimStore transitClaims, ISptLogger<VariantRaidHooks> logger)
     {
         var locationId = Normalise(info?.Location);
         if (locationId.Length > 0 && registry.HasClassic(locationId))
         {
+            // Released here and not at raid start, because both raid-start routes run and the second
+            // would find nothing left to prefer.
+            transitClaims.Release(locationId);
             registry.InstallDefaults();
             logger.Debug($"[FC] raid over on '{locationId}'; the table is back to the configured default");
         }

@@ -117,7 +117,10 @@ namespace FactoryClassic.Client
                 var locationId = settings?.SelectedLocation?.Id ?? "";
                 var ours = FactoryScenes.ServerNames.Any(id => string.Equals(id, locationId, StringComparison.OrdinalIgnoreCase));
 
-                Plugin.Log.LogDebug($"[MapChoice] {name}: location '{(locationId.Length == 0 ? "none" : locationId)}', ours={ours}, ask={Plugin.PromptSelection.Value}");
+                // Another map is not worth a line. An empty id is, because that is a Factory raid
+                // whose prompt will silently not appear.
+                if (ours || locationId.Length == 0)
+                    Plugin.Log.LogDebug($"[MapChoice] {name}: location '{(locationId.Length == 0 ? "none" : locationId)}', ours={ours}, ask={Plugin.PromptSelection.Value}");
                 if (!ours) return true;
 
                 Action proceed = () =>
@@ -182,7 +185,7 @@ namespace FactoryClassic.Client
         // preview, so shipping without images degrades to something sensible rather than a blank tile.
         static readonly Dictionary<string, Sprite> Tiles = new Dictionary<string, Sprite>();
 
-        static Sprite TileImage(string file)
+        internal static Sprite TileImage(string file)
         {
             if (Tiles.TryGetValue(file, out var cached)) return cached;
 
