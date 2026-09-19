@@ -44,6 +44,23 @@ public class MapVariantTests
         Assert.DoesNotContain("ework", VariantDisplay.VanillaLabel);
     }
 
+    // What is registered with MapVariants is the map name and the two SHORT variant names, because
+    // that mod composes "<map> - <variant>" itself. Registering the full labels would put the map name
+    // in twice: "Factory - Factory - Classic". This pins the three pieces AND the join.
+    [Fact]
+    public void TheRegisteredPiecesComposeIntoTheTwoLabels()
+    {
+        Assert.Equal("Factory", VariantDisplay.MapName);
+        Assert.Equal("Classic", VariantDisplay.ClassicName);
+        Assert.Equal("Vanilla", VariantDisplay.VanillaName);
+
+        Assert.Equal(VariantDisplay.ClassicLabel, VariantDisplay.MapName + " - " + VariantDisplay.ClassicName);
+        Assert.Equal(VariantDisplay.VanillaLabel, VariantDisplay.MapName + " - " + VariantDisplay.VanillaName);
+
+        Assert.DoesNotContain(VariantDisplay.MapName, VariantDisplay.ClassicName);
+        Assert.DoesNotContain(VariantDisplay.MapName, VariantDisplay.VanillaName);
+    }
+
     // The wire value stays "original" so a consumer reading either mod's API sees one vocabulary.
     [Fact]
     public void TheWireValueIsNotTheDisplayWord()

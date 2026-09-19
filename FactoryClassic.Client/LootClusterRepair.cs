@@ -7,9 +7,12 @@ using UnityEngine;
 
 namespace FactoryClassic.Client
 {
-    // The classic scene's loot clusters ship with _connectionGroup 0 and no BotZone; both fields
-    // postdate the scene. LootPatrolLayer then rejects every cluster and parks each bot on the cover
-    // point under its feet. The group is derived the way the bake does it: central point -> core.
+    /// <summary>
+    /// The classic scene's loot clusters ship with _connectionGroup 0 and no BotZone, because both
+    /// fields postdate the scene, and LootPatrolLayer then rejects every cluster and parks each bot
+    /// on the cover point under its feet. The group is derived the way the bake does it, from the
+    /// cluster's central point to its core. See docs/BUGS.md.
+    /// </summary>
     internal static class LootClusterRepair
     {
         internal static void Install()

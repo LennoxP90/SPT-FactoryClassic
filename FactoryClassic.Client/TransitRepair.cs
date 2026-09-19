@@ -8,18 +8,16 @@ using UnityEngine;
 
 namespace FactoryClassic.Client
 {
-    // Road_to_woods sits on exactly the same coordinate as Road_to_Labs, to three decimal places:
-    // BSG duplicated one to make the other and never moved it. The reworked tile has all three at
-    // distinct positions, so nothing caught it in a scene the game never loads.
-    //
-    // It can only be fixed here. TransitController.InitTransitPoints collects
-    // LocationScene.GetAllObjects<TransitPoint>() and merges the server's parameters onto whatever
-    // it finds, so a transit's position is the scene object's transform and base.json carries none.
+    /// <summary>
+    /// Road_to_woods sits on exactly the same coordinate as Road_to_Labs, to three decimal places:
+    /// BSG duplicated one to make the other and never moved it. It can only be fixed here, because a
+    /// transit's position is its scene object's transform and base.json carries none.
+    /// See docs/BUGS.md.
+    /// </summary>
     internal static class TransitRepair
     {
-        // Chosen by standing on each spot in raid and reading the position out of the screenshot
-        // filename, so these are measured rather than estimated. Each is about ten metres inboard of
-        // its gate, which leaves the extract its own ground.
+        // Measured by standing on each spot in raid and reading the position out of the screenshot
+        // filename. Each is about ten metres inboard of its gate.
         static readonly Dictionary<string, Vector3> Placements = new Dictionary<string, Vector3>
         {
             { "Road_to_woods", new Vector3(57.98f, 1.77f, 49.81f) },      // inboard of exit (1)
@@ -39,8 +37,8 @@ namespace FactoryClassic.Client
             static MethodBase TargetMethod() =>
                 AccessTools.Method(typeof(TransitController), nameof(TransitController.InitTransitPoints));
 
-            // After, not before: the points are known to exist and be registered by then, and moving
-            // one afterwards changes nothing the controller has already read.
+            // After, not before: the points exist and are registered by then, and moving one
+            // afterwards changes nothing the controller has already read.
             static void Postfix()
             {
                 try

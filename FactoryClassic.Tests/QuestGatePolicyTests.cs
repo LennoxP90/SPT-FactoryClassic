@@ -7,10 +7,8 @@ namespace FactoryClassic.Tests;
 
 public class QuestGatePolicyTests
 {
-    // QuestStatusCode mirrors SPT's enum so the shared policy needs no server reference and still
-    // compiles under net472 for the client. That mirror is a copy, and a copy drifts silently: a
-    // renumber upstream would regrade every quest with nothing to show for it. This is the test that
-    // turns that into a build failure.
+    // QuestStatusCode is a copy of SPT's enum, and a copy drifts silently: a renumber upstream
+    // would regrade every quest. This is what turns that into a build failure.
     [Fact]
     public void TheMirroredStatusCodesMatchSpt()
     {

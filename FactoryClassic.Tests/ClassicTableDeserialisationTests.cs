@@ -11,14 +11,10 @@ using Xunit;
 
 namespace FactoryClassic.Tests;
 
-// Deserialises EVERY classic table into the exact type ClassicLocationMod reads it as, through SPT's
-// own converters.
-//
-// This exists because the first server start crashed on looseLoot.json and the existing tests could
-// not have caught it: they read base.classic.json and nothing else, so the one file under test was
-// the one file that worked. Comparing top-level keys between versions is not a schema check either -
-// the keys matched exactly while the TYPE of the values inside had changed, 3.9.8 holding item ids as
-// integer hashes where 4.1 requires a 24-character ObjectId.
+// Deserialises EVERY classic table into the exact type the server reads it as, through SPT's own
+// converters. Comparing top-level keys between versions is not a schema check: they matched exactly
+// while the TYPE of the values changed, 3.9.8 holding item ids as integer hashes where 4.1 requires
+// a 24-character ObjectId.
 public class ClassicTableDeserialisationTests
 {
     static readonly JsonSerializerOptions SptJson = BuildOptions();
@@ -77,7 +73,7 @@ public class ClassicTableDeserialisationTests
     [Theory, MemberData(nameof(Maps))]
     public void AllExtractsDeserialise(string map) => Assert.NotEmpty(Read<IEnumerable<AllExtractsExit>>(map, "allExtracts.json"));
 
-    // The migration's own invariants, asserted on the committed files rather than on its output.
+    // What must hold of every migrated table, asserted on the committed files rather than on output.
     [Theory, MemberData(nameof(Maps))]
     public void EveryLooseLootIdIsAnObjectId(string map)
     {

@@ -9,13 +9,17 @@ This mod points the preset at them instead, and serves the matching loot, spawn 
 
 Because it ships no assets at all, the whole mod is two DLLs and some JSON.
 
-> **0.2.0 is a beta.** Everything here is played and working, but by few people on one server.
-> Please report anything odd rather than assuming it is meant to be that way - see
-> [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
+> **1.0.0 moves the map-screen choice into MapVariants.** Factory itself plays exactly as it did;
+> the prompt, the transit choice and the loading label are drawn by that mod now, and the two F12
+> settings that used to live here moved with them. Please report anything odd rather than assuming
+> it is meant to be that way - see [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
 
 ## Requires
 
 - SPT 4.1
+- **MapVariants** (`com.lennoxp90.mapvariants`), required, not optional. It owns the map-screen
+  choice, the transit prompt and the loading label for every map that has a second version, this one
+  included. Without it neither half of this mod loads and Factory is the map SPT ships.
 - Fika is optional and supported, headless hosting included
 
 ## Install
@@ -30,13 +34,18 @@ load, so a change needs a server restart. None of them touch the Factory SPT shi
 
 | key | values | what it does |
 |---|---|---|
-| `variant` | `classic`, `original` | Which tile a raid gets when nobody picked one: a player with the prompt turned off, or a Fika headless that never saw the screen. |
+| `variant` | ignored | **Deprecated and does nothing.** Which tile you get when nobody picks one is MapVariants' question now. The key is still read so an existing `config.json` loads, and a value other than `classic` is reported in the server log rather than silently dropped. |
 | `lootMode` | `classic`, `hybrid`, `modern` | `classic` serves the 3.9.8 loot tables untouched. `hybrid` adds the 464 day / 476 night item templates 4.1 spawns on Factory that the old tables never had, each at the classic spawn point nearest where 4.1 puts it. `modern` rebuilds every point from 4.1's pool instead of adding to it. |
 | `questGate` | `warn`, `hide`, `off` | What to do about the six quests the classic tile cannot satisfy. See [`docs/QUESTS.md`](docs/QUESTS.md). |
 
-Client side, in BepInEx's config for `com.lennoxp90.factoryclassic`: whether to show the map prompt
-at all, which tile to pick when it is off, and the two audio switches described in
+Client side, in BepInEx's config for `com.lennoxp90.factoryclassic`: the two audio switches, the
+loot-cluster repair and the camera diagnostic, all described in
 [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
+
+**The two choice settings moved to MapVariants.** `PromptSelection` is now
+`com.lennoxp90.mapvariants` -> `General` -> `PromptSelection`, and `DefaultSelection` is under that
+mod's `Factory` section, offering `Classic` and `Vanilla`. Copies left behind in an older
+FactoryClassic config are ignored; delete them or leave them, it makes no difference.
 
 ## Known limitations
 
@@ -52,8 +61,9 @@ at all, which tile to pick when it is off, and the two audio switches described 
 
 ## For mod authors
 
-Another mod can offer its own map variants through the same prompt rather than building a second
-one. See [`docs/EXTENDING.md`](docs/EXTENDING.md).
+This mod publishes which Factory a raid is loading, so another mod can stop showing the wrong
+layout. See [`docs/EXTENDING.md`](docs/EXTENDING.md). To offer variants of a map of your own, register
+with MapVariants rather than building a second prompt.
 
 ## Licence
 

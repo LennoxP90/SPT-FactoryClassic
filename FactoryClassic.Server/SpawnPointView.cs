@@ -4,16 +4,12 @@ using SPTarkov.Server.Core.Models.Eft.Common;
 
 namespace FactoryClassic.Server;
 
-// A loose loot spawn point, made writable.
-//
-// The shipped records expose Items and ItemDistribution as IEnumerable, so both are materialised into
-// lists once and assigned back. Doing it per edit would re-enumerate the original each time and throw
-// the previous edit away.
-//
-// The two collections are joined by composedKey, NOT by item id: LocationLootGenerator matches
-// itemDistribution against each item's ComposedKey, and anything it cannot match makes it skip the
-// whole spawn point silently. So every item added here gets a key that is unique within this point
-// and a distribution entry carrying the same one.
+/// <summary>
+/// A loose loot spawn point, made writable. Items and ItemDistribution are joined by composedKey,
+/// NOT by item id: LocationLootGenerator matches on the key and skips the whole spawn point
+/// silently when it cannot, so every item added here needs a key unique within this point and a
+/// distribution entry carrying the same one.
+/// </summary>
 public sealed class SpawnPointView
 {
     private readonly Spawnpoint _spawn;
@@ -52,8 +48,10 @@ public sealed class SpawnPointView
         return false;
     }
 
-    // Each offering paired with the weight its own distribution entry gives it. An item with no
-    // entry is not on offer at all, so it is skipped rather than treated as weightless.
+    /// <summary>
+    /// Each offering paired with the weight its own distribution entry gives it. An item with no
+    /// entry is not on offer at all, so it is skipped rather than treated as weightless.
+    /// </summary>
     public IEnumerable<(SptLootItem Item, double Weight)> Offerings()
     {
         var weights = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -72,8 +70,10 @@ public sealed class SpawnPointView
         }
     }
 
-    // Copies an offering in from another point. The item keeps its template and its upd - stack sizes
-    // and durability are part of what the item IS - but takes a fresh id and a key unique here.
+    /// <summary>
+    /// Copies an offering in from another point. The item keeps its template and its upd, since
+    /// stack size and durability are part of what it is, but takes a fresh id and a key unique here.
+    /// </summary>
     public void Add(SptLootItem source, int weight)
     {
         var key = UniqueKey(source.ComposedKey);
@@ -105,9 +105,7 @@ public sealed class SpawnPointView
         return removed;
     }
 
-    // The source key where it is free, so a merged point still reads like the tables it came from,
-    // and a suffixed one where it is not. Uniqueness is within this spawn point only, which is the
-    // scope the generator matches in.
+    // Uniqueness is within this spawn point only, which is the scope the generator matches in.
     private string UniqueKey(string? preferred)
     {
         if (!string.IsNullOrEmpty(preferred) && _keys.Add(preferred!)) return preferred!;
@@ -119,6 +117,8 @@ public sealed class SpawnPointView
         }
     }
 
+    // The shipped records expose both collections as IEnumerable, so the edited lists are assigned
+    // back after every change; re-reading the originals per edit would discard the previous one.
     private void Flush()
     {
         if (_spawn.Template is not null) _spawn.Template.Items = _items;

@@ -5,24 +5,14 @@ using UnityEngine;
 
 namespace FactoryClassic.Client
 {
-    // EffectsController.Init pulls sixteen components off the camera's effects prefab and off the
-    // camera object itself, every one without a null check. On the classic tile the prefab is missing
-    // ChromaticAberration and ThermalVision, and the camera object is missing FrostbiteEffect.
-    //
-    // Only some of those are survivable. Most are followed immediately by a field read:
-    //
-    //     cc_FastVignette_0 = go.GetComponent<CC_FastVignette>() ?? go.AddComponentCopy(component3);
-    //     cc_FastVignette_0.sharpness = component3.sharpness;      // throws anyway if component3 is null
-    //
-    // These three are not. ChromaticAberration and ThermalVision are assigned through ?? and never
-    // read from again, so putting a bare component on the camera short-circuits the null copy; and
-    // FrostbiteEffect is read straight off the camera object as "_frostbiteEffect.enabled = false".
-    //
-    // The one that actually crashed the raid was FrostbiteEffect. The other two were already present
-    // on the camera object, so Init short-circuited on its own - which is only knowable because the
-    // repair logs what it observes even when it changes nothing.
+    /// <summary>
+    /// EffectsController.Init pulls sixteen components off the camera and its effects prefab with no
+    /// null check, and the classic tile is missing three of them. See docs/BUGS.md.
+    /// </summary>
     internal static class CameraEffectsRepair
     {
+        // Only these three. The other thirteen are read from one line later, so a bare component
+        // does not save them.
         static readonly string[] SafeToAdd = { "ChromaticAberration", "ThermalVision", "FrostbiteEffect" };
 
         internal static void Install()

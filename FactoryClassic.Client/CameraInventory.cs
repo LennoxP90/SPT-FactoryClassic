@@ -8,8 +8,10 @@ using UnityEngine;
 
 namespace FactoryClassic.Client
 {
-    // Logs the render camera's component list once per Factory raid, on both tiles, so the two
-    // effect stacks can be diffed. Not gated to classic because vanilla is half the comparison.
+    /// <summary>
+    /// Logs the render camera's component list once per Factory raid, on both tiles, so the two
+    /// effect stacks can be diffed. Not gated to classic, because vanilla is half the comparison.
+    /// </summary>
     internal static class CameraInventory
     {
         static bool _reported;
@@ -66,9 +68,7 @@ namespace FactoryClassic.Client
                     Report("effects prefab",
                         AccessTools.Field(controller.GetType(), "_effectsPrefab")?.GetValue(controller) as GameObject);
 
-                    // Suspect 2 from docs/TEXTURES.md. The per-map budget in LevelSettings is identical
-                    // on both tiles, so if streaming starves the classic one it is registration rather
-                    // than budget, and these are the globals that would show it.
+                    // Suspect 2 from docs/TEXTURES.md.
                     Plugin.Log.LogInfo($"[CameraReport] streaming active={QualitySettings.streamingMipmapsActive} " +
                                        $"budget={QualitySettings.streamingMipmapsMemoryBudget:0} MB " +
                                        $"maxLevelReduction={QualitySettings.streamingMipmapsMaxLevelReduction} " +

@@ -10,55 +10,77 @@ using Location = SPTarkov.Server.Core.Models.Eft.Common.Location;
 
 namespace FactoryClassic.Server.Variants;
 
-// Both Factories side by side, one installed in SPT's live table at a time.
-//
-// LocationTable.GetDictionary() returns its cache by reference, so replacing an entry replaces what
-// the whole server serves for that location. Swapping at raid start is far simpler than trying to
-// answer every request per player, and it is what InterchangeRework settled on.
-//
-// Built at PostLoad so other mods' edits to the shipped location are already in what we copy.
+/// <summary>
+/// Builds both Factories side by side and hands the pair to MapVariants, which owns the choice, the
+/// routes and the swap from that moment on. This mod must not install into SPT's live table itself:
+/// MapVariants assigns the chosen field set onto the one live Location, so anything of ours that
+/// also replaced the dictionary entry would write over whichever object it last swapped in.
+/// </summary>
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad), UsedImplicitly]
 public class VariantRegistry(
     LocationTable locationTable,
     JsonUtil jsonUtil,
+    MapVariantsBridge mapVariants,
     ISptLogger<VariantRegistry> logger) : IOnLoad
 {
     private readonly Dictionary<string, Location> _vanilla = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Location> _classic = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Lock _gate = new();
-
-    public string ConfiguredDefault { get; private set; } = MapVariant.Classic;
+    private readonly HashSet<string> _handedOver = new(StringComparer.OrdinalIgnoreCase);
 
     private string _lootMode = LootMode.Classic;
 
+    // PostLoad, so other mods' edits to the shipped location are already in what is copied and the
+    // handover lands before MapVariants' discovery pass at PostLoad + 500000. Discovery skips a
+    // location that already has a variant recorded, so a registered Factory is never re-discovered.
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
         var root = SysPath.GetDirectoryName(typeof(VariantRegistry).Assembly.Location)!;
 
+        LoadConfig(root);
+
+        foreach (var map in FactoryScenes.ServerNames) Register(root, map);
+        foreach (var map in FactoryScenes.ServerNames) HandOver(map);
+
+        logger.Info($"[FC] variant registry ready, loot mode '{_lootMode}'; MapVariants owns the variant choice");
+
+        return Task.CompletedTask;
+    }
+
+    private void LoadConfig(string root)
+    {
         var configPath = SysPath.Combine(root, "config", "config.json");
-        if (File.Exists(configPath))
+        if (!File.Exists(configPath))
         {
-            var config = jsonUtil.Deserialize<ServerConfig>(File.ReadAllText(configPath));
-            ConfiguredDefault = MapVariant.Normalise(config?.Variant);
-            _lootMode = LootMode.Normalise(config?.LootMode);
+            logger.Warning($"[FC] {configPath} is missing; the classic tile is built with loot mode '{_lootMode}'");
+            return;
+        }
+
+        var config = jsonUtil.Deserialize<ServerConfig>(File.ReadAllText(configPath));
+        _lootMode = LootMode.Normalise(config?.LootMode);
+
+        if (config?.Variant is { Length: > 0 } && !string.Equals(config.Variant, "classic", StringComparison.OrdinalIgnoreCase))
+            logger.Warning($"[FC] config.json sets \"variant\": \"{config.Variant}\", which no longer does anything. "
+                         + "Which Factory loads is now each player's own choice, in MapVariants' F12 settings under Factory.");
+    }
+
+    // One call per location id, because each id has its own Location object in SPT. Several ids
+    // sharing one player-facing choice is a CLIENT concern, ManagedMap.LocationIds.
+    //
+    // The LIVE Location goes over as `original` deliberately: MapVariants captures both field sets
+    // before it installs anything, so the PostLoad state becomes our original, other mods included.
+    private void HandOver(string locationId)
+    {
+        if (!HasClassic(locationId)) return;
+
+        if (mapVariants.Register(locationId, _vanilla[locationId], _classic[locationId]))
+        {
+            _handedOver.Add(locationId);
+            logger.Info($"[FC] {locationId} handed to MapVariants; it owns the choice, the routes and the swap from here");
         }
         else
         {
-            logger.Warning($"[FC] {configPath} is missing; defaulting to {ConfiguredDefault}");
+            logger.Error($"[FC] {locationId} could NOT be handed to MapVariants; it stays vanilla only and no classic raid is possible there");
         }
-
-        foreach (var map in FactoryScenes.ServerNames) Register(root, map);
-
-        // Installed at load, not at raid start. A Fika headless can host a raid nobody chose a
-        // variant for, and SPT and Fika both build the raid's location - spawn points included -
-        // from whatever the table holds at that moment, which is earlier than any raid-start route.
-        InstallDefaults();
-
-        logger.Info($"[FC] variant registry ready, server default is '{ConfiguredDefault}', loot mode '{_lootMode}'");
-        foreach (var map in FactoryScenes.ServerNames)
-            if (HasClassic(map)) logger.Info($"[FC] {map} is serving {Installed(map)}");
-
-        return Task.CompletedTask;
     }
 
     private void Register(string root, string locationId)
@@ -84,56 +106,9 @@ public class VariantRegistry(
 
     public bool HasClassic(string locationId) => _classic.ContainsKey(locationId);
 
-    public Location? Classic(string locationId) => _classic.GetValueOrDefault(locationId);
+    public bool HandedOver(string locationId) => _handedOver.Contains(locationId);
 
-    public Location? Vanilla(string locationId) => _vanilla.GetValueOrDefault(locationId);
-
-    public void Install(string locationId, string variant)
-    {
-        lock (_gate)
-        {
-            var wanted = MapVariant.IsClassic(variant) ? _classic : _vanilla;
-            if (!wanted.TryGetValue(locationId, out var location)) return;
-            locationTable.GetDictionary()[locationTable.GetMappedKey(locationId)] = location;
-        }
-    }
-
-    public void RestoreVanilla(string locationId) => Install(locationId, MapVariant.Original);
-
-    // The resting state between raids: what the server config asks for, not vanilla. Restoring
-    // vanilla here would leave the table wrong for the next raid nobody chooses for, which is every
-    // headless raid.
-    public void InstallDefaults()
-    {
-        foreach (var map in FactoryScenes.ServerNames)
-            if (HasClassic(map)) Install(map, ConfiguredDefault);
-    }
-
-    // Read back through the accessor SPT itself uses, so it reports where SPT actually reads rather
-    // than what we believe we installed.
-    // The wire value of whatever the table is serving. Read by reference against the two datasets, so
-    // it reports what is actually installed rather than what was last asked for.
-    //
-    // Kept separate from Installed(), which is a sentence for a log line: handing that to a client as
-    // a variant sent every transit and every headless to the shipped map, because
-    // "CLASSIC, 120 spawn point(s)..." normalises to "original".
-    public string InstalledVariant(string locationId)
-        => IsServingClassic(locationId) ? MapVariant.Classic : MapVariant.Original;
-
-    private bool IsServingClassic(string locationId)
-    {
-        var live = locationTable.GetLocation(locationId);
-        return live is not null && ReferenceEquals(live, _classic.GetValueOrDefault(locationId));
-    }
-
-    public string Installed(string locationId)
-    {
-        var live = locationTable.GetLocation(locationId);
-        if (live is null) return "no location in the table";
-
-        var which = IsServingClassic(locationId) ? "CLASSIC"
-                  : ReferenceEquals(live, _vanilla.GetValueOrDefault(locationId)) ? "VANILLA"
-                  : "NEITHER - something else replaced it";
-        return $"{which}, {live.Base?.SpawnPointParams?.Count() ?? -1} spawn point(s), {live.Base?.Exits?.Count() ?? -1} exit(s)";
-    }
+    // Do not add a Classic(id) / Vanilla(id) accessor. After the handover MapVariants assigns the
+    // chosen fields onto the very object _vanilla holds, so "vanilla" would hand back classic data.
+    // Ask MapVariantsBridge.InstalledVariant what is installed instead.
 }

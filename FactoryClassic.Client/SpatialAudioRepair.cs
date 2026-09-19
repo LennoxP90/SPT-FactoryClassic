@@ -12,32 +12,29 @@ using UnityEngine;
 
 namespace FactoryClassic.Client
 {
-    // Repairs for the legacy Factory_Sound scene. BSG ships these scenes but never loads them, so
-    // nothing caught their unassigned references:
-    //
-    //   1. OcclusionSettings is unassigned, and method_0 dereferences it.
-    //   2. 9 of 99 audio portals have an empty _connectedRooms, so CreatePortalData throws.
-    //   3. factory_sound.audiobakedata is in the 2025-12 encoding and desyncs at pair 1 of 1550;
-    //      the client's own empty table is obsolete too. Both are replaced from plugin-data.
-    //   4. SpatialAudioLocationInfo reports no routes and no portals, so the propagation job gets
-    //      empty buffers and slices past the end of them.
-    //
-    // An empty table is a downgrade, not a neutral fallback: 4.1 routes every occluder except Fast
-    // through the baked table. 0.14.9 needed none because it traversed roomConnections at runtime.
+    /// <summary>
+    /// Repairs for the legacy Factory_Sound scene. BSG ships these scenes but never loads them, so
+    /// nothing caught their unassigned references: an unassigned OcclusionSettings, 9 of 99 audio
+    /// portals connecting no rooms, a bake in an encoding the current reader desyncs on, and a
+    /// location info reporting no routes at all. Each is documented in docs/BUGS.md.
+    /// </summary>
     internal static class SpatialAudioRepair
     {
+        // An empty table is a downgrade, not a neutral fallback: 4.1 routes every occluder except
+        // Fast through the baked table.
         const string EmptyBake = "plugin-data/factory_classic_empty.audiobakedata";
 
-        // The shipped classic table, re-encoded for the reader 4.1 actually has. See
-        // analysis/convert_audiobake.py: the file BSG ships is real routing data - 1550 room pairs -
-        // in the layout of 2025-12, and was never rebaked when the per-pair trailer changed.
+        // The shipped classic table, re-encoded for the reader 4.1 has. See
+        // analysis/convert_audiobake.py.
         const string ClassicBake = "plugin-data/factory_classic.audiobakedata";
 
         static FieldInfo _connectedRooms;
         static SpatialAudioRoom[] _rooms;
 
-        // One place decides which table is in play, so BakeRedirect and LocationInfoCapacities cannot
-        // disagree about which file the scheduler is being sized for.
+        /// <summary>
+        /// One place decides which table is in play, so BakeRedirect and LocationInfoCapacities
+        /// cannot disagree about which file the scheduler is being sized for.
+        /// </summary>
         internal static string ChosenBake()
         {
             var routing = Path.Combine(Plugin.PluginDir, ClassicBake);
@@ -72,8 +69,10 @@ namespace FactoryClassic.Client
             Plugin.Log.LogInfo("[SpatialAudio] armed");
         }
 
-        // A portal CreatePortalData can read without throwing: it dereferences portalCollider,
-        // FrontRoom and BackRoom, and the latter two are _connectedRooms[0] and [1].
+        /// <summary>
+        /// A portal CreatePortalData can read without throwing: it dereferences portalCollider,
+        /// FrontRoom and BackRoom, and the latter two are _connectedRooms[0] and [1].
+        /// </summary>
         internal static bool IsWired(BaseSpatialAudioPortal portal)
         {
             if (portal == null || portal.portalCollider == null) return false;
@@ -84,13 +83,8 @@ namespace FactoryClassic.Client
                 && rooms[1] is UnityEngine.Object back && back != null;
         }
 
-        // Rooms are looked up from the loaded scenes rather than from SpatialAudioSystem's own
-        // storage: the storage is private and is still being filled while portal data is built, so
-        // asking it here would answer "no room" for everything.
-        // The game tests containment against the SERIALIZED _bounds (ISpatialAudioRoom.Bounds), not
-        // against GetRoomBounds(), which recomputes from the room's AudioTriggerAreas and returns a
-        // zero-extent box at the transform when a room has none. Prefer the serialized value and
-        // fall back to the computed one, so a room populated either way is usable.
+        // The serialised bounds first: GetRoomBounds recomputes from the room's AudioTriggerAreas
+        // and returns a zero-extent box at the transform when a room has none.
         static Bounds BoundsOf(SpatialAudioRoom room)
         {
             var bounds = room.Bounds;
@@ -104,6 +98,9 @@ namespace FactoryClassic.Client
             return size.x > 0.01f && size.y > 0.01f && size.z > 0.01f;
         }
 
+        // From the loaded scenes, not from SpatialAudioSystem's own storage: that is private and is
+        // still being filled while portal data is built, so it would answer "no room" for
+        // everything.
         static void Census()
         {
             _rooms = Resources.FindObjectsOfTypeAll<SpatialAudioRoom>();
@@ -121,9 +118,9 @@ namespace FactoryClassic.Client
             }
         }
 
-        // The scene's own answer to what a portal connects. SpatialAudioRoom.Initialize fills
-        // _connectedRooms from the ROOM side, so a portal gets two rooms only when both rooms list it;
-        // one entry is enough here, because a RoomConnection names the room at the far end.
+        // The scene's own answer to what a portal connects. One RoomConnection is enough here
+        // because it names the room at the far end, whereas _connectedRooms is filled from the room
+        // side and so needs both rooms to list the portal.
         static Dictionary<short, KeyValuePair<SpatialAudioRoom, SpatialAudioRoom>> _declared;
 
         static void IndexDeclaredConnections()
@@ -162,8 +159,7 @@ namespace FactoryClassic.Client
             return true;
         }
 
-        // Is the point inside this box, tested in the box's own space so rotation is handled? The
-        // smallest containing box's volume comes back with it.
+        // Tested in the box's own space, so a rotated collider is handled.
         static bool Inside(BoxCollider box, Vector3 point, out float volume)
         {
             volume = 0f;
@@ -179,9 +175,9 @@ namespace FactoryClassic.Client
             return true;
         }
 
-        // A room is the union of its AudioTriggerAreas, NOT their bounding box. Testing the box is
-        // what made every portal report the same room on each side: adjacent rooms' boxes overlap
-        // right through the opening, so both sample points landed in one of them.
+        // A room is the union of its AudioTriggerAreas, NOT their bounding box. Testing the box made
+        // every portal report the same room on both sides: adjacent rooms' boxes overlap right
+        // through the opening.
         static SpatialAudioRoom RoomAt(Vector3 point)
         {
             if (_rooms == null) Census();
@@ -196,20 +192,18 @@ namespace FactoryClassic.Client
                     if (area == null) continue;
                     if (!Inside(area.GetCollider(), point, out var volume)) continue;
 
-                    // Rooms nest - a cupboard inside a hall holds the same point as the hall - so
-                    // the tightest area wins.
+                    // Rooms nest, so the tightest area wins.
                     if (volume < bestVolume) { best = room; bestVolume = volume; }
                 }
             }
             return best;
         }
 
-        // The rooms either side of a portal, inferred from its own collider.
-        //
-        // A portal is a thin slab standing in the opening it represents, so stepping out along its
-        // thinnest axis lands in one room on each side. That is the only geometry involved, and it
-        // is the portal's own, so a portal BSG placed correctly but never connected is recovered
-        // without guessing where anything belongs.
+        /// <summary>
+        /// The rooms either side of a portal, inferred from its own collider. A portal is a thin
+        /// slab standing in the opening it represents, so stepping out along its thinnest axis lands
+        /// in one room on each side, using no geometry but the portal's own.
+        /// </summary>
         internal static bool TryWire(BaseSpatialAudioPortal portal)
         {
             var box = portal.portalCollider;
@@ -227,9 +221,8 @@ namespace FactoryClassic.Client
             var centre = t.TransformPoint(box.center);
             var first = Mathf.Max(0.5f, (thickness * 0.5f) + 0.35f);
 
-            // A doorway can be deeper than one step: a gate set into a thick wall puts both samples
-            // inside the wall's own room. Walk outwards until the two sides disagree, rather than
-            // giving up on the first distance that happens not to work.
+            // A gate set into a thick wall puts both samples inside the wall's own room, so walk
+            // outwards until the two sides disagree rather than giving up on the first distance.
             SpatialAudioRoom front = null, back = null;
             var step = first;
             for (var attempt = 0; attempt < 4; attempt++)
@@ -240,8 +233,8 @@ namespace FactoryClassic.Client
                 if (front != null && back != null && front != back) break;
             }
 
-            // Still the same room means the step never left it: the portal is not in an opening
-            // between two rooms, and inventing a connection would be worse than none.
+            // Still one room means the portal is not in an opening between two, and inventing a
+            // connection would be worse than none.
             if (front == null || back == null || front == back)
             {
                 Plugin.Log.LogWarning($"[SpatialAudio] portal {portal.ID} '{portal.name}' at {centre}: stepping out to {step:0.00} m along "
@@ -257,22 +250,18 @@ namespace FactoryClassic.Client
             return true;
         }
 
-        // What CreatePortalData would have produced, for a portal whose rooms it cannot read.
-        //
-        // The rooms are used for FOUR SCALARS and nothing else - two wall-occlusion values and two
-        // outdoor flags. Everything that matters geometrically comes from the portal itself, so a
-        // portal with no rooms still has a perfectly good normal, size and centre.
-        //
-        // That is why default(AudioPortalData) was the wrong stand-in: it zeroes portalNormal and
-        // portalHalfSize, and a zero normal normalises to NaN. With no routing table nothing ever
-        // read those fields, so it looked harmless for as long as the table stayed empty.
+        /// <summary>
+        /// What CreatePortalData would have produced, for a portal whose rooms it cannot read. The
+        /// rooms only supply four scalars; everything geometric comes from the portal itself. Never
+        /// use default(AudioPortalData) instead: it zeroes portalNormal, which normalises to NaN,
+        /// and that looks harmless only for as long as the routing table stays empty.
+        /// </summary>
         static RoomPair.AudioPortalData Describe(BaseSpatialAudioPortal portal)
         {
-            // Both sides are the same room when a portal sits inside one, which is exactly the case
-            // for the portals that cannot be wired - so one lookup answers for both.
+            // One lookup answers for both sides: a portal that cannot be wired sits inside one room.
             var room = portal.portalCollider != null ? RoomAt(portal.portalCollider.bounds.center) : null;
             var occlusion = room != null ? room.WallOcclusion : 0.5f;
-            // The mask directly, rather than the IsOutdoor extension, which is not reachable from here.
+            // The mask directly: the IsOutdoor extension is not reachable from here.
             var outdoor = room != null && (room.Type & EAudioRoomTypeMask.Outdoor) != 0;
 
             return new RoomPair.AudioPortalData
@@ -307,13 +296,13 @@ namespace FactoryClassic.Client
                     if (field == null) { Plugin.Log.LogError("[SpatialAudio] OcclusionSettings field not found"); return; }
                     if (field.GetValue(__instance) is UnityEngine.Object present && present != null) return;
 
-                    // Apply() fills it from the backend settings, so a blank instance is enough to get
-                    // past the dereference with the values the game would have used anyway.
                     // The scene changes between raids, so a cached room list from the last one would
                     // point at destroyed objects.
                     _rooms = null;
                     _declared = null;
 
+                    // Apply() fills it from the backend settings, so a blank instance gets past the
+                    // dereference with the values the game would have used anyway.
                     var blank = ScriptableObject.CreateInstance(field.FieldType);
                     blank.name = "FactoryClassic_OcclusionSettings";
                     field.SetValue(__instance, blank);
@@ -326,9 +315,12 @@ namespace FactoryClassic.Client
             }
         }
 
-        // Sizes the propagation job buffers for the table being installed. The classic tile's asset
-        // reports zero routes and zero portals, and the first warm-up then slices a zero-length
-        // NativeArray. The asset is shared, so the edit outlives the raid; Raise makes it idempotent.
+        /// <summary>
+        /// Sizes the propagation job buffers for the table being installed. The classic tile's asset
+        /// reports zero routes and zero portals, and the first warm-up then slices a zero-length
+        /// NativeArray. The asset is shared, so the edit outlives the raid, but Raise only ever
+        /// raises, so a second raid in the same session changes nothing.
+        /// </summary>
         [HarmonyPatch]
         internal static class LocationInfoCapacities
         {
@@ -370,11 +362,12 @@ namespace FactoryClassic.Client
             }
         }
 
-        // The guard belongs on the method that dereferences, not on one caller. AddStaticPortalData is
-        // only the load-time path; UpdateInitialPortalsData is the second, called from
-        // GameWorld.OnGameStarted when the spawn countdown ends. A throw there aborts OnGameStarted
-        // itself, so every system the world starts afterwards silently never runs - which presented as
-        // the map loading, rendering, and the process dying seconds later.
+        /// <summary>
+        /// Guards the method that dereferences, not one caller: the second caller is
+        /// UpdateInitialPortalsData from GameWorld.OnGameStarted, and a throw there aborts
+        /// OnGameStarted, so every system the world starts afterwards silently never runs. That
+        /// presented as the map loading, rendering, and the process dying seconds later.
+        /// </summary>
         [HarmonyPatch]
         internal static class PortalDataGuard
         {
@@ -387,9 +380,8 @@ namespace FactoryClassic.Client
             {
                 if (IsWired(portal)) return true;
 
-                // Recover it rather than skip it. A skipped portal is not merely silent: with a real
-                // routing table its all-zero data sits on live paths, which is what killed the raid
-                // when SpatialRouting was first turned on.
+                // Recovered rather than skipped: with a real routing table, a skipped portal's
+                // all-zero data sits on live paths and kills the raid.
                 if (portal != null && Plugin.WirePortals.Value)
                 {
                     try
@@ -422,9 +414,11 @@ namespace FactoryClassic.Client
             }
         }
 
-        // CheckOcclusion reads portal.FrontRoom.ID with no null check, and the call sits inside
-        // CG_SmoothDoorOpenCoroutine - an NRE there kills the coroutine and the door stops part way
-        // open. False is what the method returns anyway when it has no usable portal.
+        /// <summary>
+        /// CheckOcclusion reads portal.FrontRoom.ID with no null check, from inside
+        /// CG_SmoothDoorOpenCoroutine, so an NRE there kills the coroutine and the door stops part
+        /// way open. False is what the method returns anyway when it has no usable portal.
+        /// </summary>
         [HarmonyPatch]
         internal static class DoorOcclusionGuard
         {
@@ -473,9 +467,8 @@ namespace FactoryClassic.Client
                 {
                     if (!PresetSwap.ClassicLoaded()) return;
 
-                    // Routing first, empty table second. Either is better than the shipped file,
-                    // which the current reader desyncs on and which fails the raid rather than the
-                    // sound.
+                    // Either is better than the shipped file, which the current reader desyncs on
+                    // and which fails the raid rather than the sound.
                     var ours = ChosenBake();
                     if (ours == null)
                     {

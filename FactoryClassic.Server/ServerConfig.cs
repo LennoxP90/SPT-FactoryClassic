@@ -2,24 +2,21 @@ using System.Text.Json.Serialization;
 
 namespace FactoryClassic.Server;
 
-// JsonUtil sets no naming policy and no case insensitivity, so System.Text.Json matches
-// case-sensitively: camelCase JSON against PascalCase properties binds everything to defaults with
-// no exception thrown. Every property carries an explicit name for that reason.
+/// <summary>
+/// config/config.json. Every property needs an explicit JsonPropertyName: JsonUtil matches
+/// case-sensitively, so camelCase against PascalCase binds to defaults with nothing thrown.
+/// </summary>
 public class ServerConfig
 {
+    // Ignored since the MapVariants migration, and kept only so a stale value is reported.
     [JsonPropertyName("variant")]
     public string Variant { get; set; } = "classic";
 
-    // classic | hybrid | modern. Applies to the classic tile only and is read at load, so a change
-    // takes effect on a server restart.
+    // classic | hybrid | modern. Read at load, so a change needs a server restart.
     [JsonPropertyName("lootMode")]
     public string LootMode { get; set; } = "classic";
 
-    // warn | hide | off. Six quests place a Factory objective on a trigger zone that exists only in
-    // the scenes 4.1 ships, so they can never be completed on the classic tile.
-    //   warn - name any you have already accepted, and confirm, before a classic raid loads
-    //   hide - also keep them off the trader board while classic is the map in play, unless accepted
-    //   off  - say nothing
+    // warn | hide | off. See docs/QUESTS.md.
     [JsonPropertyName("questGate")]
     public string QuestGate { get; set; } = "warn";
 }

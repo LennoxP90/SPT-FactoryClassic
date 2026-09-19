@@ -13,14 +13,15 @@ public sealed class QuestGateResponse
 {
     [JsonPropertyName("mode")] public string Mode { get; set; } = "";
 
-    // Quest names, already filtered to the ones this player has accepted, ready to show as they are.
+    // Already filtered to the quests this player has accepted, ready to show as they are.
     [JsonPropertyName("accepted")] public List<string> Accepted { get; set; } = [];
 }
 
-// What the map-choice prompt needs to warn the player with, before it loads the classic tile.
-//
-// The client asks rather than being told, because the answer depends on the profile and changes
-// every time a quest is taken or handed in.
+/// <summary>
+/// What the map-choice prompt needs to warn the player with before it loads the classic tile. The
+/// client asks rather than being told, because the answer depends on the profile and changes every
+/// time a quest is taken or handed in.
+/// </summary>
 [Injectable, UsedImplicitly]
 public class QuestGateRoutes(
     JsonUtil jsonUtil,

@@ -4,24 +4,14 @@ using System.Collections.Generic;
 
 namespace FactoryClassic.Shared
 {
-    // What the mod does about quests the classic tile cannot satisfy.
-    //
-    // Six quests place their objective on a trigger zone that exists only in the scenes SPT 4.1
-    // ships. The zones are GameObjects baked into those scenes, so on the classic tile they are
-    // simply not there and the objective can never fire. Grafting replacements in was rejected:
-    // it would put quest triggers on a map BSG never put them on, and guessing where is worse
-    // than saying so.
+    /// <summary>
+    /// What the mod does about the six quests whose objective sits on a trigger zone that exists
+    /// only in the scenes SPT 4.1 ships. See docs/QUESTS.md.
+    /// </summary>
     public static class QuestGateMode
     {
-        // Let the player take them and say so before a classic raid loads. The default, because it
-        // costs the player nothing and explains the one thing that would otherwise look like a bug.
         public const string Warn = "warn";
-
-        // Also keep them off the trader board while classic is the map in play, so the situation
-        // does not arise. Never applied to a quest already accepted.
         public const string Hide = "hide";
-
-        // Do nothing at all.
         public const string Off = "off";
 
         public static string Normalise(string? mode)
@@ -34,9 +24,11 @@ namespace FactoryClassic.Shared
         public static bool Hides(string? mode) => Normalise(mode) == Hide;
     }
 
-    // SPT's QuestStatusEnum, mirrored so this file needs no server reference and still compiles
-    // under net472 for the client. QuestGatePolicyTests asserts every value against the real enum,
-    // so a renumber upstream fails the build rather than silently regrading every quest.
+    /// <summary>
+    /// SPT's QuestStatusEnum, mirrored so this compiles under net472 with no server reference.
+    /// QuestGatePolicyTests asserts every value against the real enum, so a renumber upstream fails
+    /// the build rather than silently regrading every quest.
+    /// </summary>
     public static class QuestStatusCode
     {
         public const int Locked = 0;
@@ -53,9 +45,9 @@ namespace FactoryClassic.Shared
 
     public static class QuestGatePolicy
     {
-        // In the player's active list: taken, not yet handed in. The hard boundary of the whole
-        // feature is here - an accepted quest is warned about and never touched, so the mod never
-        // hides, fails, rewrites or removes one, and never writes to a profile.
+        /// <summary>
+        /// The hard boundary of the feature: an accepted quest is warned about, never touched.
+        /// </summary>
         public static bool IsAccepted(int status)
             => status == QuestStatusCode.Started || status == QuestStatusCode.AvailableForFinish;
 
@@ -66,13 +58,11 @@ namespace FactoryClassic.Shared
             || status == QuestStatusCode.MarkedAsFailed
             || status == QuestStatusCode.Expired;
 
-        // A quest with no entry in the profile has never been offered, which is the state every
-        // quest starts in, so an absent status is treated as Locked rather than as an error.
+        // Absent is the state every quest starts in, so it reads as Locked, not as an error.
         public static int StatusOf(IReadOnlyDictionary<string, int> statuses, string questId)
             => statuses != null && statuses.TryGetValue(questId, out var status) ? status : QuestStatusCode.Locked;
 
-        // The names to show the player before a classic raid loads, sorted so the list reads the
-        // same every time.
+        // Sorted, so the list reads the same every time.
         public static List<string> Warnings(
             IReadOnlyDictionary<string, string> gated, IReadOnlyDictionary<string, int> statuses)
         {
@@ -87,9 +77,7 @@ namespace FactoryClassic.Shared
             return names;
         }
 
-        // The ids to keep off the trader board. Accepted is excluded by the boundary above; settled
-        // is excluded because removing a completed quest from the list would read to the player as
-        // losing it.
+        // Settled ones are excluded too: removing a completed quest would read as losing it.
         public static HashSet<string> Hidden(
             IEnumerable<string> gatedIds, IReadOnlyDictionary<string, int> statuses)
         {

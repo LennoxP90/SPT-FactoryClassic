@@ -10,17 +10,12 @@ using SPTarkov.Server.Core.Utils;
 
 namespace FactoryClassic.Server.Quests;
 
-// Keeps the gated quests off the trader board while classic is the map in play. Only in `hide` mode,
-// and only for quests the player has not accepted.
-//
-// Every static router matching a url runs, in registration order, each handed the previous one's
-// output. Ours carries no [Injectable] TypePriority, which defaults to int.MaxValue, so it is
-// registered after SPT's own router at OnLoadOrder.Routers and receives the list SPT built.
-//
-// It EDITS that string rather than rebuilding the response from the database. Rebuilding would throw
-// away whatever another mod did to the same route, and a mod that adds quests is exactly the kind of
-// mod someone runs alongside this one. Editing as a JsonNode also keeps every field SPT emitted,
-// which binding to a model would not: a property our copy of the model lacks would vanish silently.
+/// <summary>
+/// Keeps the gated quests off the trader board while classic is in play, in hide mode only and for
+/// quests the player has not accepted. It EDITS the list SPT built rather than rebuilding it, so
+/// another mod's quests survive, and edits it as a JsonNode rather than binding to a model, so a
+/// field our copy of the model lacks cannot vanish silently. See docs/QUESTS.md.
+/// </summary>
 [Injectable, UsedImplicitly]
 public class QuestListFilter(
     JsonUtil jsonUtil,

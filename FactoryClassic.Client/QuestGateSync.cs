@@ -5,19 +5,17 @@ using SPT.Common.Http;
 
 namespace FactoryClassic.Client
 {
-    // Asks the server which of this profile's accepted quests the classic tile cannot satisfy.
-    //
-    // The server answers rather than the client working it out, because the list depends on the
-    // profile and on a server config key, and because the evidence behind it - which trigger zones
-    // exist in which scenes - is a committed table there, not something to re-derive per prompt.
+    /// <summary>
+    /// Asks the server which of this profile's accepted quests the classic tile cannot satisfy. The
+    /// server answers because the list depends on the profile and on a committed table there.
+    /// </summary>
     internal static class QuestGateSync
     {
         const string Route = "/factoryclassic/questgate";
 
         static readonly string[] None = new string[0];
 
-        // Quest names to put in front of the player, or nothing at all. Never throws: a warning that
-        // cannot be fetched must not stop the player picking a map.
+        // Never throws: a warning that cannot be fetched must not stop the player picking a map.
         internal static string[] AcceptedBlocked()
         {
             try
@@ -43,6 +41,22 @@ namespace FactoryClassic.Client
                 Plugin.Log.LogWarning($"[QuestGate] could not read the quest gate: {e.GetType().Name}: {e.Message}");
                 return None;
             }
+        }
+
+        /// <summary>
+        /// What MapVariants' choice window shows above CONFIRM. Whole sentences, because that mod
+        /// must not know what a quest is, and on the UI thread, so it must be quick.
+        /// </summary>
+        internal static string[] Warnings()
+        {
+            var blocked = AcceptedBlocked();
+            if (blocked.Length == 0) return None;
+            return new[]
+            {
+                "These quests send you to places the classic Factory does not have, so they cannot be completed there: "
+                + string.Join(", ", blocked)
+                + ".  Nothing is failed or taken away - finish them on " + Shared.VariantDisplay.VanillaLabel + "."
+            };
         }
     }
 }

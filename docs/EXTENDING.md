@@ -69,6 +69,16 @@ chosen, known before any scene loads. The second is what the engine actually has
 true once the scenes are in. If you are choosing a map image at raid start you want the first; if you
 are reading the live scene you want the second.
 
+**`VariantResolved` is raised by MapVariants now, and filtered back to Factory here.** Since 0.3.0
+the choice lives in MapVariants, which raises its own event for every map it manages. This mod
+subscribes to that and re-raises only the Factory raids, translated into our vocabulary, so the
+contract you already code against is unchanged: it still fires for Factory and nothing else.
+
+**`CurrentVariant` returns null on a non-Factory raid, even while another map's variant is decided.**
+MapVariants' session state is global; ours is not. That is the same "null means not decided **for
+Factory**" contract this page has always described, made explicit now that another map can be decided
+at the same time.
+
 **The variant values are not the display names.** The wire values are `classic` and `original` -
 `original` matching InterchangeRework's, so a mod supporting both maps sees one vocabulary. What a
 player is shown is `Factory - Classic` and `Factory - Vanilla`. Use `DisplayName` rather than
@@ -77,12 +87,16 @@ is BSG's folder name for the *current* map, so it names the opposite tile.
 
 ## Prompting on the map screen yourself
 
-If your mod also asks the player something before a raid, **do not rewire the screen's Next and Ready
-buttons.** `OnClick.RemoveAllListeners()` is a destructive claim on a shared object: whichever mod
-runs last silently deletes the other's handler, and the loser gets no error. Patch the screen
-controller's `ShowNextScreen` and `ShowReadyScreen` instead, and decline anything that is not your
-location. InterchangeRework's `docs/EXTENDING.md` carries the full write-up including the three traps
-that make it fiddly.
+**This mod no longer patches the map screen at all.** Since 0.3.0 the prompt, the transit prompt and
+the loading label all belong to MapVariants, which FactoryClassic registers with as a provider. If
+your mod also asks the player something before a raid, talk to MapVariants rather than to this one.
+
+The old advice still holds for anyone who does patch that screen: **do not rewire the screen's Next
+and Ready buttons.** `OnClick.RemoveAllListeners()` is a destructive claim on a shared object:
+whichever mod runs last silently deletes the other's handler, and the loser gets no error. Patch the
+screen controller's `ShowNextScreen` and `ShowReadyScreen` instead, and decline anything that is not
+your location. InterchangeRework's `docs/EXTENDING.md` carries the full write-up including the three
+traps that make it fiddly.
 
 ## Verifying it is there
 

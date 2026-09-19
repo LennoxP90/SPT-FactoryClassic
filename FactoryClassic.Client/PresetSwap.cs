@@ -10,72 +10,58 @@ using UnityEngine.SceneManagement;
 
 namespace FactoryClassic.Client
 {
-    // A Factory raid loads THREE presets, not one: the time-of-day preset, a shared base preset and a
-    // culling child. They cannot be told apart by ServerName - the base preset carries an empty one
-    // and the night culling child carries "factory4_day" - so the gate is the scene paths.
-    //
-    // The swap is a list REPLACEMENT rather than a rename: 14 shipped keys against 7 classic ones.
-    // Since every classic list is shorter than the shipped one it replaces, the first N entries are
-    // rewritten in place and the surplus removed, which means no key object is ever constructed. The
-    // removed entries are kept alive in a snapshot so a vanilla raid can put the list back exactly.
+    /// <summary>
+    /// Points the scene preset at the classic tile. A Factory raid loads THREE presets - the
+    /// time-of-day one, a shared base and a culling child - and the swap is a list REPLACEMENT, 14
+    /// shipped keys against 7 classic ones, not a rename.
+    /// </summary>
     [HarmonyPatch]
     internal static class PresetSwap
     {
-        // The player's answer for this raid, set by the prompt. Null means nobody answered here, which
-        // is the normal state on a Fika headless: it hosts under its own session and never sees a map
-        // screen, so it asks the server instead.
-        static string _sessionChoice;
+        // Rests on Classic because that is where MapVariants' location table rests: its server
+        // installs the backport dataset at load and its client answers "backport" until somebody
+        // picks. The scenes must agree with the table.
+        static string _variant = MapVariant.Classic;
 
-        // Raised when a raid's variant becomes known, and AGAIN if the player goes back and picks the
-        // other map before the raid starts. Announcing only the first assignment left a consumer
-        // holding the first answer while the raid loaded the second.
-        internal static event Action<string> Resolved;
+        internal static string Variant => _variant;
 
-        internal static string SessionChoice
+        internal static void SetVariant(string variant) => _variant = MapVariant.Normalise(variant);
+
+        /// <summary>
+        /// Called by MapVariants with ITS wire value, at the decision point on the map screen and
+        /// again on the load path. Never call it with one of our own values: their "backport" is our
+        /// "classic", and a pass-through through either mod's Normalise silently means "original".
+        /// </summary>
+        internal static void OnMapVariantsAnswer(string theirVariant)
         {
-            get => _sessionChoice;
-            set
+            var ours = VariantVocabulary.FromMapVariants(theirVariant);
+
+            if (MapVariant.IsClassic(ours) && !ServerManagesFactory(out var locationId))
             {
-                _sessionChoice = value;
-
-                // Clearing re-arms the announcement for the next raid, which a headless serving many
-                // raids in one process depends on.
-                if (value == null) { _announced = null; return; }
-
-                var variant = MapVariant.Normalise(value);
-                if (variant == _announced) return;
-                _announced = variant;
-                Announce(variant);
+                Plugin.Log.LogError("[PresetSwap] MapVariants asked for the classic tile, but its server does not manage "
+                                  + $"'{locationId ?? "factory"}'. Loading the shipped Factory instead: the location table holds "
+                                  + "the shipped data and the two must agree.");
+                SetVariant(MapVariant.Original);
+                return;
             }
+
+            SetVariant(ours);
+            Plugin.Log.LogInfo($"[PresetSwap] MapVariants says {VariantDisplay.For(ours)}");
         }
 
-        static string _announced;
-
-        // Each subscriber in its own try. This fans out into third-party handlers, and a bare Invoke
-        // lets the first one that throws take the raid with it: from the prompt it would stop the
-        // player's click doing anything, and from the preset hook the scenes would never be swapped.
-        static void Announce(string variant)
+        // MapVariants says "backport" whenever nobody has answered, which is only right when our
+        // server half registered. Without this check, a server that did not would get the classic
+        // scenes over the shipped tile's coordinates, with nothing in any log.
+        static bool ServerManagesFactory(out string locationId)
         {
-            var handlers = Resolved;
-            if (handlers == null) return;
+            locationId = MapVariantsApi.CurrentLocationId;
 
-            foreach (var handler in handlers.GetInvocationList())
-            {
-                try
-                {
-                    ((Action<string>)handler)(variant);
-                }
-                catch (Exception e)
-                {
-                    var owner = handler.Target?.GetType().FullName ?? handler.Method.DeclaringType?.FullName ?? "an unknown subscriber";
-                    Plugin.Log.LogError($"[PresetSwap] a VariantResolved handler in {owner} threw, continuing: {e}");
-                }
-            }
+            // No location means nobody has answered yet, so both ids have to hold.
+            return locationId != null
+                ? ManagedGuard.Managed(locationId)
+                : ManagedGuard.Managed(ExtensionApiContract.DayLocationId)
+                  && ManagedGuard.Managed(ExtensionApiContract.NightLocationId);
         }
-
-        // Asked at most once per raid, and cleared with the choice, so a headless serving many raids in
-        // one process asks again for each.
-        static bool _asked;
 
         static FieldInfo _keysField, _pathField, _rcidField;
 
@@ -86,7 +72,8 @@ namespace FactoryClassic.Client
             internal List<string> Rcids;
         }
 
-        // The preset objects are cached for the process, so their originals are remembered once.
+        // The preset objects are cached for the process, so their shipped state is remembered once
+        // and a vanilla raid after a classic one can actively put the list back.
         static readonly Dictionary<object, Snapshot> Snapshots = new Dictionary<object, Snapshot>();
 
         internal static void Install()
@@ -95,37 +82,10 @@ namespace FactoryClassic.Client
             Plugin.Log.LogInfo("[PresetSwap] armed");
         }
 
-        internal static void ForgetChoice()
-        {
-            SessionChoice = null;
-            _asked = false;
-        }
-
-        // The preset's ServerName is the location id, but only the time-of-day preset carries one: the
-        // base preset's is empty and the culling child's is wrong. It loads first, so by the time the
-        // others arrive the answer is already in SessionChoice.
-        static void AskIfUnanswered(ScenesPreset preset)
-        {
-            if (_asked || SessionChoice != null) return;
-
-            var locationId = (preset.ServerName ?? "").Trim().ToLowerInvariant();
-            if (locationId.Length == 0) return;
-            if (!FactoryScenes.ServerNames.Any(id => string.Equals(id, locationId, StringComparison.OrdinalIgnoreCase))) return;
-
-            _asked = true;
-            var answer = VariantSync.Ask(locationId);
-            if (answer == null)
-            {
-                Plugin.Log.LogWarning($"[PresetSwap] the server did not answer for '{locationId}'; falling back to the configured default");
-                return;
-            }
-
-            SessionChoice = answer;
-            Plugin.Log.LogInfo($"[PresetSwap] nobody answered a prompt this raid; the server says {VariantDisplay.For(answer)}");
-        }
-
-        // Which Factory this raid is loading, answered from the loaded scenes rather than from our own
-        // state, so anything downstream agrees with what the engine actually has.
+        /// <summary>
+        /// Whether the classic scenes are loaded, answered from the engine rather than from our own
+        /// state, so anything downstream agrees with what the game actually has.
+        /// </summary>
         internal static bool ClassicLoaded()
         {
             for (int i = 0; i < SceneManager.sceneCount; i++)
@@ -147,9 +107,7 @@ namespace FactoryClassic.Client
                 var kind = FactoryScenes.Classify(snapshot.Paths);
                 if (kind == PresetKind.NotOurs) return;
 
-                AskIfUnanswered(preset);
-
-                var variant = MapVariant.Normalise(SessionChoice ?? Plugin.DefaultVariant);
+                var variant = Variant;
                 if (variant == MapVariant.Classic) Apply(keys, FactoryScenes.ClassicPathsFor(kind), kind);
                 else Revert(keys, snapshot, kind);
             }
@@ -170,7 +128,6 @@ namespace FactoryClassic.Client
             return _keysField.GetValue(preset) as IList;
         }
 
-        // Taken once per preset object, from the shipped state, before anything is written.
         static Snapshot Remember(ScenesPreset preset, IList keys)
         {
             if (Snapshots.TryGetValue(preset, out var existing)) return existing;
@@ -191,8 +148,6 @@ namespace FactoryClassic.Client
             Plugin.Log.LogInfo($"[PresetSwap] {kind} preset now loads {keys.Count} classic scene(s)");
         }
 
-        // The preset is mutated in place and lives for the process, so a vanilla raid after a classic
-        // one must actively put the shipped list back rather than simply doing nothing.
         static void Revert(IList keys, Snapshot snapshot, PresetKind kind)
         {
             keys.Clear();
@@ -231,8 +186,8 @@ namespace FactoryClassic.Client
             }
             _pathField.SetValue(key, path);
 
-            // rcid is byte-identical to path in this build; an entry that shipped with an empty one
-            // keeps it empty.
+            // rcid is byte-identical to path in this build, but an entry that shipped with an empty
+            // one keeps it empty.
             var current = _rcidField.GetValue(key) as string;
             if (rcid != null) _rcidField.SetValue(key, rcid);
             else if (!string.IsNullOrEmpty(current)) _rcidField.SetValue(key, path);

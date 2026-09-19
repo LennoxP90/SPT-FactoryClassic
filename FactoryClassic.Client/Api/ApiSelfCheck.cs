@@ -4,12 +4,12 @@ using System.Reflection;
 
 namespace FactoryClassic.Client.Api
 {
-    // Logs the public surface at load, exactly as a consumer reading it by reflection would see it.
-    //
-    // The point is that the API is consumed WITHOUT a compile-time reference, so nothing breaks at
-    // build time if a member is renamed or its type changes - it breaks silently in someone else's
-    // mod, weeks later. Printing what reflection actually finds turns that into a line in our own log
-    // that a bug report can be checked against.
+    /// <summary>
+    /// Logs the public surface at load, exactly as a consumer reading it by reflection would see it.
+    /// Nothing breaks at build time when a member is renamed, because there is no compile-time
+    /// reference; it breaks silently in someone else's mod weeks later. This is the line a bug
+    /// report can be checked against.
+    /// </summary>
     internal static class ApiSelfCheck
     {
         internal static void Run()

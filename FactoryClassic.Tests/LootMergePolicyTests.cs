@@ -76,7 +76,7 @@ public class LootMergePolicyTests
         Assert.Equal(1, LootMergePolicy.NearestIndex(P(0, 18, 0), candidates));
     }
 
-    // Deterministic on ties, so the same tables always produce the same merge.
+    // Ties go to the earlier candidate, so the same tables always produce the same merge.
     [Fact]
     public void TiesGoToTheEarlierCandidate()
     {

@@ -6,26 +6,19 @@ using SysPath = System.IO.Path;
 
 namespace FactoryClassic.Server;
 
-// Builds the classic Location as a NEW object rather than mutating the shipped one. That is what
-// makes the standing invariant structural instead of a promise: the vanilla Location is never written
-// to, so a player who never picks classic cannot be affected by anything here.
-//
-// The LazyLoad members are constructed fresh rather than cloned. LazyLoad holds a deserializer and its
-// transformers are additive with no way to remove one, so a cloned instance carrying the vanilla
-// loader plus our transformer would be a second, subtly different object. A new LazyLoad that simply
-// returns our data has no such ambiguity.
+/// <summary>
+/// Builds the classic Location as a NEW object rather than mutating the shipped one, so a player
+/// who never picks classic cannot be affected by anything here. The LazyLoad members are
+/// constructed fresh rather than cloned: transformers on a LazyLoad are additive with no way to
+/// remove one, so a clone would carry the vanilla loader as well as ours.
+/// </summary>
 public static class ClassicDataset
 {
     public static Location Build(Location vanilla, string dir, string lootMode, JsonUtil jsonUtil, out ClassicCounts counts)
     {
-        // Start from a copy of the shipped base so the 4.1-only keys survive, then overlay only what
-        // is bound to the geometry.
         var merged = Reshape(vanilla.Base, Read<LocationBase>(jsonUtil, dir, "base.classic.json"), jsonUtil);
 
         var looseLoot = Read<LooseLoot>(jsonUtil, dir, "looseLoot.json");
-
-        // The shipped tile's own loose loot is the donor pool: it is where the items added to EFT
-        // since November 2024 live, and where on the map they sit.
         var loot = LootModeTransform.Apply(looseLoot, vanilla.LooseLoot?.Value, lootMode);
         var staticContainers = Read<StaticContainerDetails>(jsonUtil, dir, "staticContainers.json");
         var staticLoot = Read<Dictionary<MongoId, StaticLootDetails>>(jsonUtil, dir, "staticLoot.json");
@@ -51,8 +44,7 @@ public static class ClassicDataset
     }
 
     // A round trip through JSON is the cheapest faithful copy of the shipped base: it keeps every
-    // 4.1-only key without naming them, which a hand-written copy would have to and would then drift
-    // from as SPT adds more.
+    // 4.1-only key without naming them, so it cannot drift as SPT adds more.
     private static LocationBase Reshape(LocationBase vanilla, LocationBase classic, JsonUtil jsonUtil)
     {
         var copy = jsonUtil.Deserialize<LocationBase>(jsonUtil.Serialize(vanilla)!)!;
@@ -68,8 +60,8 @@ public readonly record struct ClassicCounts(
     int SpawnPoints, int Exits, int BossEntries, int LooseLootPoints, int Containers,
     LootModeTransform.Report Loot)
 {
-    // Six boss entries is the number that proves the PMC merge held: 4.1 places PMCs through
-    // BossLocationSpawn and 3.9.8 did not, so two would mean they were deleted.
+    // Six boss entries is the number that proves the PMC merge held; two would mean 4.1's PMCs were
+    // deleted.
     public override string ToString() =>
         $"{SpawnPoints} spawn point(s), {Exits} exit(s), {BossEntries} boss entr(ies), " +
         $"{LooseLootPoints} loose loot point(s), {Containers} container(s); {Loot}";

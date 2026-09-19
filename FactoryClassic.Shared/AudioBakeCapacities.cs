@@ -3,10 +3,10 @@ using System;
 
 namespace FactoryClassic.Shared
 {
-    // A bake's last eight bytes are its per-pair maxima. SoundPropagationJobScheduler sizes its job
-    // buffers from SpatialAudioLocationInfo's copy of the same two numbers, then slices them with
-    // GetSubArray, unchecked in a release build. The classic tile's asset carries zero for both, so
-    // the file's copy is transplanted onto it before the first slice.
+    /// <summary>
+    /// A bake's last eight bytes are its per-pair maxima. The propagation job sizes its buffers from
+    /// the location info's copy and slices them unchecked, and the classic tile's copy is zero.
+    /// </summary>
     public static class AudioBakeCapacities
     {
         public const int TailLength = 8;
@@ -22,8 +22,7 @@ namespace FactoryClassic.Shared
             return true;
         }
 
-        // Only ever raise. An oversized buffer is sliced down to the pair in hand; an undersized one
-        // is the overrun. Zero capacities, as the empty table declares, therefore change nothing.
+        // Only ever raise: an undersized buffer is the overrun, an oversized one is sliced down.
         public static uint Raise(uint current, uint fromBake) => fromBake > current ? fromBake : current;
     }
 }

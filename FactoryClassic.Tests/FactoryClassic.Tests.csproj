@@ -14,7 +14,6 @@
     <Compile Include="..\FactoryClassic.Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <!-- The loot transform is server-side but pure, so it is exercised here against the real tables. -->
   <ItemGroup>
     <ProjectReference Include="..\FactoryClassic.Server\FactoryClassic.Server.csproj" />
   </ItemGroup>

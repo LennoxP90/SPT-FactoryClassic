@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <ModVersion>0.2.0</ModVersion>
+    <ModVersion>1.0.0</ModVersion>
     <ModGuid>com.lennoxp90.factoryclassic</ModGuid>
     <ModName>FactoryClassic</ModName>
     <PluginFolder>LennoxP90-FactoryClassic</PluginFolder>

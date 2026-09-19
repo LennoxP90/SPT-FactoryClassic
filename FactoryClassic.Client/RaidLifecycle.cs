@@ -3,10 +3,10 @@ using UnityEngine.SceneManagement;
 
 namespace FactoryClassic.Client
 {
-    // Clears the raid's answer when the map unloads, so the next raid decides for itself.
-    //
-    // This matters most on a Fika headless, which serves many raids in one process and never sees a
-    // map screen: without it the first raid's answer would be reused for every raid afterwards.
+    /// <summary>
+    /// Clears what is ours when a Factory map unloads. ManagedGuard is deliberately not cleared:
+    /// what the server manages cannot change between raids.
+    /// </summary>
     internal static class RaidLifecycle
     {
         internal static void Install()
@@ -14,8 +14,6 @@ namespace FactoryClassic.Client
             SceneManager.sceneUnloaded += scene =>
             {
                 if (!FactoryScenes.IsFactoryScene(scene.name)) return;
-                PresetSwap.ForgetChoice();
-                TransitVariantClaim.Forget();
                 CameraInventory.Forget();
             };
             Plugin.Log.LogInfo("[Lifecycle] armed");

@@ -22,14 +22,12 @@ public sealed class QuestGateDocument
     [JsonPropertyName("quests")] public Dictionary<string, GatedQuest> Quests { get; set; } = [];
 }
 
-// The quests the classic tile cannot satisfy, read from db/quest-gate.json.
-//
-// A committed data file rather than a scan at startup, for two reasons. The evidence is in the
-// client's scene files, which the server has no business reading; and a list in the repository is
-// reviewable, so when BSG moves a zone the change shows up as a diff and a failing test instead of
-// as silence.
-//
-// The names here are only for display. Everything that decides anything keys on the quest id.
+/// <summary>
+/// The quests the classic tile cannot satisfy, read from db/quest-gate.json. A committed file
+/// rather than a startup scan: the evidence is in the client's scene files, and a list in the
+/// repository shows a BSG change as a diff and a failing test instead of as silence. The names are
+/// for display only; everything that decides anything keys on the quest id.
+/// </summary>
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad), UsedImplicitly]
 public class QuestGateTable(
     TemplateTable templateTable,
@@ -40,7 +38,9 @@ public class QuestGateTable(
 
     public string Mode { get; private set; } = QuestGateMode.Warn;
 
-    // Quest id -> display name. Empty when the mode is off, so nothing downstream has to ask twice.
+    /// <summary>
+    /// Quest id to display name. Empty when the mode is off, so nothing downstream asks twice.
+    /// </summary>
     public IReadOnlyDictionary<string, string> Gated => _gated;
 
     public Task OnLoadAsync(CancellationToken cancellationToken)
@@ -71,9 +71,8 @@ public class QuestGateTable(
             return Task.CompletedTask;
         }
 
-        // A quest id that no longer exists means BSG or SPT changed the quest under us, and the entry
-        // can only be wrong. Dropping it is the safe half - the gate under-reports rather than hiding
-        // a quest that is now fine - but it is logged loudly because the list needs regenerating.
+        // An id that no longer exists means the quest changed under us, so the entry can only be
+        // wrong. Dropped rather than kept, so the gate under-reports instead of hiding a live quest.
         var live = templateTable.Quests;
         var stale = new List<string>();
         var kept = new Dictionary<string, string>(StringComparer.Ordinal);

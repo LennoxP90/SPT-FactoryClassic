@@ -5,10 +5,11 @@ using UnityEngine;
 
 namespace FactoryClassic.Client
 {
-    // BepInEx reads the cfg once at start; this watches the file and reloads it so an edit between
-    // raids applies without a relaunch. Every value is read through ConfigEntry.Value at the point of
-    // use, never cached, which is what makes the reload effective: one cached value and that feature
-    // quietly stops reloading.
+    /// <summary>
+    /// Watches the cfg file and reloads it, so an edit between raids applies without a relaunch.
+    /// Never cache a ConfigEntry.Value anywhere: read it at the point of use, or that one setting
+    /// quietly stops reloading.
+    /// </summary>
     internal sealed class ConfigReload : MonoBehaviour
     {
         static ConfigFile _config;
@@ -38,7 +39,8 @@ namespace FactoryClassic.Client
             try
             {
                 _config.Reload();
-                Plugin.Log.LogInfo($"[FC] config reloaded, prompt={Plugin.PromptSelection.Value} default={Plugin.DefaultSelection.Value}");
+                Plugin.Log.LogInfo($"[FC] config reloaded, routing={Plugin.SpatialRouting.Value} portals={Plugin.WirePortals.Value} "
+                                 + $"lootClusters={Plugin.RepairLootClusters.Value} cameraReport={Plugin.CameraReport.Value}");
             }
             catch (Exception e)
             {

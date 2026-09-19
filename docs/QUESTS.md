@@ -54,13 +54,21 @@ quest text describes somewhere that tile does not have.
 
 `questGate` in the server config.
 
-- **`warn`** (default). Before a classic raid loads, the map prompt names any of the six the player
-  has **already accepted**, and the accept button reads CONFIRM rather than NEXT. Nothing is blocked:
-  the player is told, and decides.
+- **`warn`** (default). Before a classic raid loads, the map variant window names any of the six the
+  player has **already accepted**, and the accept button reads CONFIRM rather than NEXT. Nothing is
+  blocked: the player is told, and decides. The window is the one MapVariants puts on the map screen,
+  so the warning appears next to the Classic / Vanilla choice itself rather than in a prompt of our
+  own.
 - **`hide`** also keeps them off the trader board, so the situation does not arise. Only while
   classic is in play for **both** Factory locations, because a player running classic days and
   vanilla nights can still finish them at night. Never applied to a quest already accepted.
 - **`off`** says nothing.
+
+`hide` asks what the server is **serving right now**, not what this player last picked. On a
+single-player server those are the same sentence. On a Fika server they are not: the map served is
+global, so the last person to choose decides what every player's trader board hides. That is the
+honest answer, because it is the tile the raid will actually load, but it does mean a player who never
+touched the choice can see the six disappear.
 
 ### The boundary
 

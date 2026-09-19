@@ -7,17 +7,11 @@ using Xunit;
 
 namespace FactoryClassic.Tests;
 
-// Why the timing of the variant swap matters, expressed as data.
-//
-// A player fell through the classic tile on the first raid after the quest gate went in. The server
-// had served spawn point 91c08464-492f-443d-8632-54e01d6bdd20, which exists only in the shipped
-// tables: SPT and Fika build a raid's location from whatever the location table holds when the raid
-// is CREATED, which is earlier than any raid-start route, so the swap landed after the raid was
-// already built.
-//
-// These assertions are the standing reminder of why the two datasets can never be used
-// interchangeably. They cannot catch the ordering bug itself - that is live request sequencing - but
-// they fail loudly if the datasets ever converge, which is the other way this stops being dangerous.
+/// <summary>
+/// Why the timing of the variant swap matters, expressed as data. These cannot catch the ordering
+/// bug itself, which is live request sequencing, but they fail loudly if the two datasets ever
+/// converge, which is the other way it stops being dangerous.
+/// </summary>
 public class SpawnPointDivergenceTests
 {
     static readonly JsonSerializerOptions SptJson = Build();
@@ -49,11 +43,8 @@ public class SpawnPointDivergenceTests
     }
 
     // A bot spawn point that names no zone gives its bot no patrol graph, and the 3.9.8 tables name
-    // none at all. Observed as a whole raid of bots standing where they spawned, with Tagilla the one
-    // exception - and his BossLocationSpawn is the one entry that names BotZone explicitly.
-    //
-    // The zone exists in the classic scene: Factory_AI.unity carries a single BotZone, named BotZone,
-    // which is the name the shipped tables use for the same map.
+    // none at all. Observed as a whole raid of bots standing where they spawned, Tagilla excepted:
+    // his BossLocationSpawn is the one entry that names BotZone.
     [Theory]
     [InlineData("factory4_day")]
     [InlineData("factory4_night")]
@@ -95,9 +86,8 @@ public class SpawnPointDivergenceTests
         Assert.All(vanillaOnly, spawn => Assert.Contains("Player", spawn.Categories!));
     }
 
-    // The far easier trap to miss: the ids the two share are the SAME ids at DIFFERENT places. BSG
-    // kept the identifiers and moved the points when they rebuilt the map, so a spawn point can look
-    // perfectly valid, match by id, and still be tens of metres from where the classic geometry is.
+    // The trap that is easier to miss: the ids the two share are the SAME ids at DIFFERENT places,
+    // so a spawn point can match by id and still be tens of metres from any classic geometry.
     [Theory]
     [InlineData("factory4_day")]
     [InlineData("factory4_night")]
