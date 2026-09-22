@@ -50,12 +50,24 @@ namespace FactoryClassic.Client
                         Plugin.Log.LogWarning($"[Camera] added a bare {name}; neither the camera nor its effects prefab had one, " +
                                               "and Init would have copied from null");
                     }
+
+                    AddUltimateBloom(host);
                 }
                 catch (Exception e)
                 {
                     Plugin.Log.LogError($"[Camera] repair failed: {e}");
                 }
             }
+        }
+
+        // Cam2 has none, and a bare one keeps its arrays null until its first render, so a mod
+        // configuring it at raid start (HollywoodGraphics) throws. CreateMaterials fills them now.
+        static void AddUltimateBloom(GameObject host)
+        {
+            if (host.GetComponent<UltimateBloom>() != null) return;
+
+            host.AddComponent<UltimateBloom>().CreateMaterials();
+            Plugin.Log.LogWarning("[Camera] added an UltimateBloom; the classic camera has none");
         }
     }
 }

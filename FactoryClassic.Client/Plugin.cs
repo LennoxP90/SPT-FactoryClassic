@@ -11,6 +11,8 @@ namespace FactoryClassic.Client
     // HARD, not soft. It also guarantees MapVariants' Awake has run before ours, which is what makes
     // calling Maps.Register from Awake legal.
     [BepInDependency("com.lennoxp90.mapvariants")]
+    // Soft: only so its assembly is loaded before AmandsGraphicsCompat looks for it.
+    [BepInDependency("com.Amanda.Graphics", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
     {
         internal static ManualLogSource Log;
@@ -36,6 +38,7 @@ namespace FactoryClassic.Client
             Safe(nameof(LootClusterRepair), LootClusterRepair.Install);
             Safe(nameof(TransitRepair), TransitRepair.Install);
             Safe(nameof(WaypointsStandDown), WaypointsStandDown.Install);
+            Safe(nameof(AmandsGraphicsCompat), AmandsGraphicsCompat.Install);
             Safe("MapVariants", RegisterWithMapVariants);
             Safe("ApiSelfCheck", Api.ApiSelfCheck.Run);
 
