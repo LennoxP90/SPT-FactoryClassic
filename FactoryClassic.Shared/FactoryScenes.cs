@@ -72,6 +72,12 @@ namespace FactoryClassic.Shared
             return PresetKind.Base;
         }
 
+        /// <summary>
+        /// The time-of-day preset is the one a raid loads; Base and Culling are its ChildPresets,
+        /// loaded after it.
+        /// </summary>
+        public static bool IsRoot(PresetKind kind) => kind == PresetKind.Day || kind == PresetKind.Night;
+
         public static IReadOnlyList<string> ClassicPathsFor(PresetKind kind) => kind switch
         {
             PresetKind.Day => ClassicDay,

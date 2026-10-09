@@ -33,6 +33,18 @@ public class FactoryScenesTests
         Assert.Equal(PresetKind.Culling, FactoryScenes.Classify(ShippedNightCulling));
     }
 
+    // The night culling child carries ServerName factory4_day, so a child deciding for itself takes
+    // the day answer and drops Factory_Rework_Night_Quests from a vanilla night raid.
+    [Fact]
+    public void OnlyTheTimeOfDayPresetDecides()
+    {
+        Assert.True(FactoryScenes.IsRoot(FactoryScenes.Classify(ShippedDay)));
+        Assert.True(FactoryScenes.IsRoot(FactoryScenes.Classify(ShippedNight)));
+        Assert.False(FactoryScenes.IsRoot(FactoryScenes.Classify(ShippedBase)));
+        Assert.False(FactoryScenes.IsRoot(FactoryScenes.Classify(ShippedDayCulling)));
+        Assert.False(FactoryScenes.IsRoot(FactoryScenes.Classify(ShippedNightCulling)));
+    }
+
     [Fact]
     public void AnotherMapsPresetIsNotOurs()
     {

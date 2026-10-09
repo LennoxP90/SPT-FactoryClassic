@@ -23,6 +23,9 @@ namespace FactoryClassic.Client
         // picks. The scenes must agree with the table.
         static string _variant = MapVariant.Classic;
 
+        // What the root preset of the load in progress decided; its child presets follow it.
+        static string _raidVariant;
+
         internal static string Variant => _variant;
 
         internal static void SetVariant(string variant) => _variant = MapVariant.Normalise(variant);
@@ -107,7 +110,10 @@ namespace FactoryClassic.Client
                 var kind = FactoryScenes.Classify(snapshot.Paths);
                 if (kind == PresetKind.NotOurs) return;
 
-                var variant = Variant;
+                // The time-of-day preset loads first and its children follow it. Answers arriving
+                // for a child are ignored: the night culling child carries ServerName factory4_day,
+                // so MapVariants hands us the DAY answer mid-load.
+                var variant = FactoryScenes.IsRoot(kind) ? (_raidVariant = Variant) : (_raidVariant ?? Variant);
                 if (variant == MapVariant.Classic) Apply(keys, FactoryScenes.ClassicPathsFor(kind), kind);
                 else Revert(keys, snapshot, kind);
             }
