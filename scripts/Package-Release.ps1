@@ -3,6 +3,8 @@
 param(
     [string]$Configuration = "Release",
     [string]$OutDir = "P:\",
+    # The Halloween bundle after build_external_bundle.py; it is not in git (docs/RESUME.md has the rebuild).
+    [string]$HalloweenBundle = "F:\Code\SPT docker server\sdk\staging\factory-event-bundles\external\factoryclassic_halloween.bundle",
     [switch]$SkipGates
 )
 
@@ -14,15 +16,46 @@ if (-not (Test-Path $dist)) { throw "nothing staged at $dist; build first" }
 $plugin = Join-Path $dist "BepInEx\plugins\LennoxP90-FactoryClassic"
 $serverMod = Join-Path $dist "SPT_Runtime\user\mods\LennoxP90-FactoryClassic"
 
+# The bundle and the stamp the client checks it against (HalloweenBundle.cs reads BundleBytes).
+$halloween = Join-Path $plugin "plugin-data\halloween"
+if (-not (Test-Path $HalloweenBundle)) { throw "no Halloween bundle at $HalloweenBundle; rebuild it per docs/RESUME.md" }
+# Only the external-assets step writes this file; a bundle without it carries every borrowed texture, mesh and clip.
+if (-not (Test-Path ([IO.Path]::ChangeExtension($HalloweenBundle, ".external.json")))) {
+    throw "$HalloweenBundle has no .external.json beside it, so it is the full build rather than the external one"
+}
+New-Item -ItemType Directory -Force $halloween | Out-Null
+$bundleItem = Copy-Item $HalloweenBundle (Join-Path $halloween "factoryclassic_halloween.bundle") -Force -PassThru
+[ordered]@{
+    RipBuild    = "1.3.0.0.48484"
+    BuiltUtc    = (Get-Item $HalloweenBundle).LastWriteTimeUtc.ToString("o")
+    BundleBytes = $bundleItem.Length
+    Scenes      = @("FactoryClassic_Halloween", "FactoryClassic_Halloween_Light", "FactoryClassic_Halloween_Sound")
+} | ConvertTo-Json | Set-Content (Join-Path $halloween "halloween-stamp.json") -Encoding utf8
+Write-Host ("staged the Halloween bundle: {0:N0} bytes" -f $bundleItem.Length)
+
 if (-not $SkipGates) {
     foreach ($required in @(
         (Join-Path $plugin "FactoryClassic.Client.dll"),
         (Join-Path $plugin "plugin-data\factory_classic.audiobakedata"),
         (Join-Path $plugin "plugin-data\factory_classic_empty.audiobakedata"),
+        (Join-Path $halloween "factoryclassic_halloween.bundle"),
+        (Join-Path $halloween "halloween-stamp.json"),
+        (Join-Path $halloween "factory_event_sound.audiobakedata"),
+        (Join-Path $halloween "corpses.json"),
         (Join-Path $serverMod "FactoryClassic.Server.dll"),
+        (Join-Path $serverMod "FactoryClassic.Server.Web.dll"),
         (Join-Path $serverMod "config\config.json"),
-        (Join-Path $serverMod "db\quest-gate.json")
+        (Join-Path $serverMod "db\quest-gate.json"),
+        (Join-Path $serverMod "db\halloween\corpses.json")
     )) { if (-not (Test-Path $required)) { throw "missing from the payload: $required" } }
+
+    # The external build is about 81 MB and the full one about 360 MB, so well over 150 means nothing was borrowed.
+    if ($bundleItem.Length -gt 150MB) { throw ("the Halloween bundle is {0:N0} bytes; the external build is about 81 MB" -f $bundleItem.Length) }
+    # Client and server must agree on which corpses exist, or loot lands in containers the client never names.
+    if ((Get-FileHash (Join-Path $halloween "corpses.json")).Hash -ne (Get-FileHash (Join-Path $serverMod "db\halloween\corpses.json")).Hash) {
+        throw "the client's and the server's corpses.json differ"
+    }
+    Write-Host "gate ok: Halloween bundle, stamp, bake and matching corpse lists"
 
     # A missing table here is classic geometry served the reworked tile's loot or exits.
     foreach ($tile in @("factory4_day", "factory4_night")) {

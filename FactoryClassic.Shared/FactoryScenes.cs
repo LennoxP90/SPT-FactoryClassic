@@ -86,5 +86,29 @@ namespace FactoryClassic.Shared
             PresetKind.Culling => None,
             _ => None,
         };
+
+        // The Halloween bundle's scenes: the props and the event's lights on top of classic, and the event's
+        // whole sound scene in place of classic's.
+        public const string HalloweenScene = "FactoryClassic_Halloween";
+        public const string HalloweenLightScene = "FactoryClassic_Halloween_Light";
+        public const string HalloweenSoundScene = "FactoryClassic_Halloween_Sound";
+
+        /// <summary>
+        /// The classic list plus whichever of the bundle's scenes belong to this preset. A scene the
+        /// bundle does not carry is simply not added, and classic's sound stays unless the event's is there.
+        /// </summary>
+        public static IReadOnlyList<string> HalloweenPathsFor(PresetKind kind, IReadOnlyList<string> bundleScenePaths)
+        {
+            string? Find(string name) => bundleScenePaths.FirstOrDefault(p => System.IO.Path.GetFileNameWithoutExtension(p) == name);
+            var classic = ClassicPathsFor(kind);
+            if (kind == PresetKind.Day || kind == PresetKind.Night)
+                return Find(HalloweenLightScene) is { } light ? classic.Concat(new[] { light }).ToList() : classic;
+            if (kind != PresetKind.Base) return classic;
+
+            var paths = classic.ToList();
+            if (Find(HalloweenSoundScene) is { } sound) paths[paths.FindIndex(p => p.EndsWith("/" + ClassicSoundScene + ".unity"))] = sound;
+            if (Find(HalloweenScene) is { } props) paths.Add(props);
+            return paths;
+        }
     }
 }

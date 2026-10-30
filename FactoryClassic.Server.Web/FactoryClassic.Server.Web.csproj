@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FactoryClassic.Server.Web</RootNamespace>
+    <AssemblyName>FactoryClassic.Server.Web</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Version>$(ModVersion)</Version>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="SPTarkov.Server.Web" Version="4.1.0" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\FactoryClassic.Server\FactoryClassic.Server.csproj" Private="false" />
+  </ItemGroup>
+  <Target Name="StageServerWeb" AfterTargets="Build">
+    <PropertyGroup><StageDir>$(DistRoot)SPT_Runtime\user\mods\$(PluginFolder)\</StageDir></PropertyGroup>
+    <MakeDir Directories="$(StageDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(StageDir)" />
+  </Target>
+</Project>

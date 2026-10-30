@@ -24,6 +24,9 @@ namespace FactoryClassic.Client
         // Fast through the baked table.
         const string EmptyBake = "plugin-data/factory_classic_empty.audiobakedata";
 
+        // The 1.3.0 event's own table for its own sound scene; it already reads in 4.1's format.
+        const string HalloweenBake = "plugin-data/halloween/factory_event_sound.audiobakedata";
+
         // The shipped classic table, re-encoded for the reader 4.1 has. See
         // analysis/convert_audiobake.py.
         const string ClassicBake = "plugin-data/factory_classic.audiobakedata";
@@ -37,6 +40,16 @@ namespace FactoryClassic.Client
         /// </summary>
         internal static string ChosenBake()
         {
+            // The event's rooms are not classic's; its own table is what routes them. Without it, the ambient
+            // players gated on room reachability never start.
+            if (PresetSwap.HalloweenSoundLoaded())
+            {
+                var events = Path.Combine(Plugin.PluginDir, HalloweenBake);
+                if (File.Exists(events)) return events;
+                var none = Path.Combine(Plugin.PluginDir, EmptyBake);
+                return File.Exists(none) ? none : null;
+            }
+
             var routing = Path.Combine(Plugin.PluginDir, ClassicBake);
             if (Plugin.SpatialRouting.Value && File.Exists(routing)) return routing;
 
@@ -66,6 +79,7 @@ namespace FactoryClassic.Client
             harmony.PatchAll(typeof(PortalDataGuard));
             harmony.PatchAll(typeof(DoorOcclusionGuard));
             harmony.PatchAll(typeof(BakeRedirect));
+            harmony.PatchAll(typeof(AmbientEffectsFill));
             Plugin.Log.LogInfo("[SpatialAudio] armed");
         }
 
@@ -477,7 +491,9 @@ namespace FactoryClassic.Client
                         return;
                     }
 
-                    if (ours.EndsWith(Path.GetFileName(ClassicBake), StringComparison.Ordinal))
+                    if (PresetSwap.HalloweenSoundLoaded())
+                        Plugin.Log.LogInfo($"[SpatialAudio] Halloween sound: '{dataPath}' -> {Path.GetFileName(ours)}");
+                    else if (ours.EndsWith(Path.GetFileName(ClassicBake), StringComparison.Ordinal))
                         Plugin.Log.LogInfo($"[SpatialAudio] classic tile: '{dataPath}' -> our converted routing table");
                     else
                         Plugin.Log.LogInfo($"[SpatialAudio] classic tile: '{dataPath}' -> our empty routing table"
@@ -487,6 +503,37 @@ namespace FactoryClassic.Client
                 catch (Exception e)
                 {
                     Plugin.Log.LogError($"[SpatialAudio] bake redirect failed: {e}");
+                }
+            }
+        }
+    
+        /// <summary>
+        /// The classic sound scene's AmbientAudioSystem has no EffectsData, so Init throws on its first line that
+        /// reads it, logs "ambient players don't playing" to the spatial-audio log, and the raid has no ambience.
+        /// Any loaded mixer effects asset is the game's own, shared between maps.
+        /// </summary>
+        [HarmonyPatch]
+        internal static class AmbientEffectsFill
+        {
+            static MethodBase TargetMethod() => AccessTools.Method(typeof(Audio.AmbientSubsystem.AmbientAudioSystem), "Init");
+
+            static void Prefix(Audio.AmbientSubsystem.AmbientAudioSystem __instance)
+            {
+                try
+                {
+                    if (__instance == null || !PresetSwap.ClassicLoaded() || __instance.EffectsData != null) return;
+                    var found = Resources.FindObjectsOfTypeAll<Audio.AmbientSubsystem.Data.MixerEffectsDataSO>();
+                    if (found.Length == 0)
+                    {
+                        Plugin.Log.LogError("[SpatialAudio] ambient EffectsData is unassigned and no mixer effects asset is loaded; this raid has no ambience");
+                        return;
+                    }
+                    __instance.EffectsData = found[0];
+                    Plugin.Log.LogWarning($"[SpatialAudio] ambient EffectsData was unassigned on {__instance.gameObject.scene.name}; using '{found[0].name}' (1 of {found.Length})");
+                }
+                catch (Exception e)
+                {
+                    Plugin.Log.LogError($"[SpatialAudio] ambient EffectsData fill failed: {e}");
                 }
             }
         }

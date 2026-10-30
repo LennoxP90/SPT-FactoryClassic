@@ -37,6 +37,39 @@ What should **not** appear:
 - any `NullReferenceException` naming `InteractiveObjectOccluder` or `SpatialAudioSystem`
 - `Spatial Audio Location info is missing, can't full initialized`
 
+## A Halloween raid
+
+The server log names the roll, and how many corpse containers it added:
+
+```
+[FC] factory4_day: 65 Halloween corpse container(s) join the classic table on a Halloween raid
+[FC] 'factory4_day' rolled HALLOWEEN for this raid
+```
+
+The client log, from one Halloween raid:
+
+```
+[Halloween] server says factory4_day is HALLOWEEN
+[Halloween] bundle loaded: FactoryClassic_Halloween, FactoryClassic_Halloween_Light, FactoryClassic_Halloween_Sound
+[PresetSwap] Base preset now loads 7 classic scene(s)
+[AmbientRepair] told 38 event sound changer(s) it is Halloween
+[HalloweenMixer] FactoryClassic_Halloween_Sound: 21 source(s) and 47 component field(s) moved from the bundle's MasterMixer to the game's; 0 source(s) without a same-named group
+[HalloweenMixer] ambience channels lifted 14 dB
+[Halloween] FactoryClassic_Halloween: restored 65 of 67 container id(s), worst match 0.001 m
+[Halloween] look tuned: 20/20 values
+[HalloweenMixer] the game reset its ambience channels 21.1 s after load; lifted 14 dB again
+```
+
+Whether the event's ambience started is not in that log: look in the game's own
+`Logs\log_<date>\<date> spatial-audio.log` for `Ambient Audio System successful init`.
+
+What should **not** appear:
+
+- `bundle or stamp missing` or `does not match its stamp` - the archive was not fully extracted
+- `Base preset now loads 6` on a raid the server called HALLOWEEN - the props and lights did not load
+- `restored` with a count well under 65, or a worst match far above 0.001 m - the bundle and the corpse list
+  come from different versions of this mod
+
 ## Settings that produce more
 
 In BepInEx's config for `com.lennoxp90.factoryclassic`, under `[Diagnostics]`:

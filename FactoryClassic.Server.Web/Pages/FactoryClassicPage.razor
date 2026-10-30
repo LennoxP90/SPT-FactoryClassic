@@ -1,0 +1,72 @@
+@page "/factoryclassic"
+@* Administrator, matching every other page that writes config. *@
+@attribute [Authorize(Policy = "Administrator")]
+@layout SPTarkov.Server.Web.Layout.BaseMudBlazorLayout
+
+<PageTitle>FactoryClassic</PageTitle>
+
+<MudMainContent>
+  <MudContainer MaxWidth="MaxWidth.Small" Class="pa-6">
+
+    <MudPaper Class="pa-6 mb-4" Elevation="4">
+      <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+        <div>
+          <MudText Typo="Typo.h4">FactoryClassic</MudText>
+          <MudText Typo="Typo.body2" Class="mud-text-secondary">The pre-rework Factory</MudText>
+        </div>
+        <MudStack Row="true" Spacing="2">
+          <MudButton StartIcon="@Icons.Material.Filled.Refresh" Variant="Variant.Outlined" OnClick="Reload">Reload</MudButton>
+          <MudButton StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary"
+                     OnClick="Save" Disabled="@(!dirty)">Save changes</MudButton>
+        </MudStack>
+      </MudStack>
+    </MudPaper>
+
+    @if (message is not null)
+    {
+      <MudAlert Severity="@severity" Class="mb-4" ShowCloseIcon="true" CloseIconClicked="@(() => message = null)">@message</MudAlert>
+    }
+
+    <MudPaper Class="pa-6" Elevation="2">
+      <MudText Typo="Typo.h6">Halloween</MudText>
+      <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+        The chance that a Classic raid is the Halloween version. Read at the start of each raid. A raid in progress keeps its result.
+      </MudText>
+      <MudNumericField T="int" Label="Halloween chance (%)" Min="0" Max="100" Variant="Variant.Outlined"
+                       Value="@chance" ValueChanged="@(v => { chance = v; dirty = true; })" />
+    </MudPaper>
+
+  </MudContainer>
+</MudMainContent>
+
+@code {
+  private ServerConfig config = new();
+  private int chance;
+  private bool dirty;
+  private string? message;
+  private Severity severity = Severity.Info;
+
+  protected override void OnInitialized() => Reload();
+
+  private void Reload()
+  {
+    config = ServerConfigFile.Read(ServerConfigFile.DefaultPath);
+    chance = FactoryClassic.Shared.HalloweenRoll.Clamp(config.HalloweenChance);
+    dirty = false;
+  }
+
+  private void Save()
+  {
+    try
+    {
+      config.HalloweenChance = FactoryClassic.Shared.HalloweenRoll.Clamp(chance);
+      ServerConfigFile.Write(ServerConfigFile.DefaultPath, config);
+      dirty = false;
+      (message, severity) = ($"Saved. The next raid rolls at {config.HalloweenChance}%.", Severity.Success);
+    }
+    catch (Exception e)
+    {
+      (message, severity) = ($"Saving failed: {e.Message}", Severity.Error);
+    }
+  }
+}

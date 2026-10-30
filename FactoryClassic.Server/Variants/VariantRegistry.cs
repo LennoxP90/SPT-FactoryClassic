@@ -1,3 +1,4 @@
+using FactoryClassic.Server.Halloween;
 using FactoryClassic.Shared;
 using JetBrains.Annotations;
 using SPTarkov.Common.Models.Logging;
@@ -21,6 +22,7 @@ public class VariantRegistry(
     LocationTable locationTable,
     JsonUtil jsonUtil,
     MapVariantsBridge mapVariants,
+    HalloweenService halloween,
     ISptLogger<VariantRegistry> logger) : IOnLoad
 {
     private readonly Dictionary<string, Location> _vanilla = new(StringComparer.OrdinalIgnoreCase);
@@ -96,6 +98,15 @@ public class VariantRegistry(
             _vanilla[locationId] = vanilla;
             _classic[locationId] = ClassicDataset.Build(vanilla, dir, _lootMode, jsonUtil, out var counts);
             logger.Info($"[FC] {locationId} classic dataset built: {counts}");
+            try
+            {
+                var corpses = HalloweenLoot.Apply(_classic[locationId], vanilla, root, locationId, jsonUtil, id => halloween.Outcome(id, ""));
+                logger.Info($"[FC] {locationId}: {corpses} Halloween corpse container(s) join the classic table on a Halloween raid");
+            }
+            catch (Exception e)
+            {
+                logger.Error($"[FC] could not add the Halloween corpses to '{locationId}'; classic still loads, its Halloween raids have no corpse loot: {e}");
+            }
         }
         catch (Exception e)
         {

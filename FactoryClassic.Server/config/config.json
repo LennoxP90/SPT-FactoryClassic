@@ -1,5 +1,6 @@
 {
   "variant": "classic",
   "lootMode": "classic",
-  "questGate": "warn"
+  "questGate": "warn",
+  "halloweenChance": 50
 }

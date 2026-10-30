@@ -143,4 +143,64 @@ public class FactoryScenesTests
     {
         Assert.Equal(new[] { "factory4_day", "factory4_night" }, FactoryScenes.ServerNames);
     }
+
+    static readonly string[] Bundle =
+    {
+        "Assets/FactoryClassic/FactoryClassic_Halloween.unity",
+        "Assets/FactoryClassic/FactoryClassic_Halloween_Light.unity",
+    };
+
+    [Fact]
+    public void HalloweenBaseAppendsDelta()
+    {
+        var paths = FactoryScenes.HalloweenPathsFor(PresetKind.Base, Bundle);
+        Assert.Equal(FactoryScenes.ClassicPathsFor(PresetKind.Base).Concat(new[] { Bundle[0] }), paths);
+    }
+
+    [Fact]
+    public void HalloweenDayAndNightAppendTheLights()
+    {
+        Assert.Equal(FactoryScenes.ClassicPathsFor(PresetKind.Day).Concat(new[] { Bundle[1] }), FactoryScenes.HalloweenPathsFor(PresetKind.Day, Bundle));
+        Assert.Equal(FactoryScenes.ClassicPathsFor(PresetKind.Night).Concat(new[] { Bundle[1] }), FactoryScenes.HalloweenPathsFor(PresetKind.Night, Bundle));
+    }
+
+    [Fact]
+    public void HalloweenNightWithoutEventLightUsesClassicNight()
+        => Assert.Equal(FactoryScenes.ClassicPathsFor(PresetKind.Night), FactoryScenes.HalloweenPathsFor(PresetKind.Night, new[] { Bundle[0] }));
+
+    static readonly string[] BundleWithSound = Bundle.Concat(new[] { "Assets/FactoryClassic/FactoryClassic_Halloween_Sound.unity" }).ToArray();
+
+    [Fact]
+    public void HalloweenSoundReplacesClassicSound()
+    {
+        var paths = FactoryScenes.HalloweenPathsFor(PresetKind.Base, BundleWithSound);
+        Assert.DoesNotContain(paths, p => p.EndsWith("/Factory_Sound.unity"));
+        Assert.Contains(BundleWithSound[2], paths);
+        Assert.Contains(Bundle[0], paths);
+        Assert.Equal(FactoryScenes.ClassicPathsFor(PresetKind.Base).Count + 1, paths.Count);
+    }
+
+    [Fact]
+    public void HalloweenSoundOnlyInBase()
+        => Assert.DoesNotContain(BundleWithSound[2], FactoryScenes.HalloweenPathsFor(PresetKind.Day, BundleWithSound));
+
+    [Fact]
+    public void HalloweenCullingIsEmpty() => Assert.Empty(FactoryScenes.HalloweenPathsFor(PresetKind.Culling, Bundle));
+
+    [Fact]
+    public void EveryHalloweenListFitsInsideTheShippedOneItReplaces()
+    {
+        Assert.True(FactoryScenes.HalloweenPathsFor(PresetKind.Day, Bundle).Count <= ShippedDay.Length);
+        Assert.True(FactoryScenes.HalloweenPathsFor(PresetKind.Night, Bundle).Count <= ShippedNight.Length);
+        Assert.True(FactoryScenes.HalloweenPathsFor(PresetKind.Base, Bundle).Count <= ShippedBase.Length);
+        Assert.True(FactoryScenes.HalloweenPathsFor(PresetKind.Base, BundleWithSound).Count <= ShippedBase.Length);
+    }
+
+    [Fact]
+    public void ClassicListsUnchanged()
+    {
+        Assert.Equal(6, FactoryScenes.ClassicPathsFor(PresetKind.Base).Count);
+        Assert.Single(FactoryScenes.ClassicPathsFor(PresetKind.Day));
+        Assert.Single(FactoryScenes.ClassicPathsFor(PresetKind.Night));
+    }
 }

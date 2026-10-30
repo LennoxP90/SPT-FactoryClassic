@@ -6,6 +6,9 @@ using System.Reflection;
 using EFT;
 using FactoryClassic.Shared;
 using HarmonyLib;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using SPT.Common.Http;
 using UnityEngine.SceneManagement;
 
 namespace FactoryClassic.Client
@@ -25,6 +28,7 @@ namespace FactoryClassic.Client
 
         // What the root preset of the load in progress decided; its child presets follow it.
         static string _raidVariant;
+        static bool _raidHalloween;
 
         internal static string Variant => _variant;
 
@@ -89,10 +93,15 @@ namespace FactoryClassic.Client
         /// Whether the classic scenes are loaded, answered from the engine rather than from our own
         /// state, so anything downstream agrees with what the game actually has.
         /// </summary>
-        internal static bool ClassicLoaded()
+        // A Halloween raid swaps classic's sound scene for the event's, and is still classic.
+        internal static bool ClassicLoaded() => SceneLoaded(FactoryScenes.ClassicSoundScene) || HalloweenSoundLoaded();
+
+        internal static bool HalloweenSoundLoaded() => SceneLoaded(FactoryScenes.HalloweenSoundScene);
+
+        static bool SceneLoaded(string name)
         {
             for (int i = 0; i < SceneManager.sceneCount; i++)
-                if (SceneManager.GetSceneAt(i).name == FactoryScenes.ClassicSoundScene) return true;
+                if (SceneManager.GetSceneAt(i).name == name) return true;
             return false;
         }
 
@@ -113,13 +122,43 @@ namespace FactoryClassic.Client
                 // The time-of-day preset loads first and its children follow it. Answers arriving
                 // for a child are ignored: the night culling child carries ServerName factory4_day,
                 // so MapVariants hands us the DAY answer mid-load.
-                var variant = FactoryScenes.IsRoot(kind) ? (_raidVariant = Variant) : (_raidVariant ?? Variant);
-                if (variant == MapVariant.Classic) Apply(keys, FactoryScenes.ClassicPathsFor(kind), kind);
-                else Revert(keys, snapshot, kind);
+                var root = FactoryScenes.IsRoot(kind);
+                var variant = root ? (_raidVariant = Variant) : (_raidVariant ?? Variant);
+                if (root) _raidHalloween = variant == MapVariant.Classic && AskHalloween(kind) && HalloweenBundle.Ensure();
+
+                if (variant != MapVariant.Classic) Revert(keys, snapshot, kind);
+                else
+                {
+                    // The preset is cached for the process and Apply can only shorten it, so a Halloween raid after a
+                    // plain classic one would lose the scenes it adds; start from the shipped list every time.
+                    Revert(keys, snapshot, kind);
+                    Apply(keys, _raidHalloween ? FactoryScenes.HalloweenPathsFor(kind, HalloweenBundle.ScenePaths) : FactoryScenes.ClassicPathsFor(kind), kind);
+                }
             }
             catch (Exception e)
             {
                 Plugin.Log.LogError($"[PresetSwap] prefix failed, the shipped Factory loads: {e}");
+            }
+        }
+
+        internal static bool HalloweenLoaded() => SceneLoaded(FactoryScenes.HalloweenScene);
+
+        // The server rolls once per raid and holds the answer, so every peer asking gets the same one.
+        // Any failure is plain classic.
+        static bool AskHalloween(PresetKind kind)
+        {
+            var location = kind == PresetKind.Night ? ExtensionApiContract.NightLocationId : ExtensionApiContract.DayLocationId;
+            try
+            {
+                var json = RequestHandler.PostJson("/factoryclassic/halloween", JsonConvert.SerializeObject(new { location }));
+                var halloween = !string.IsNullOrWhiteSpace(json) && (bool?)JObject.Parse(json)["halloween"] == true;
+                Plugin.Log.LogInfo($"[Halloween] server says {location} is {(halloween ? "HALLOWEEN" : "plain classic")}");
+                return halloween;
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning($"[Halloween] could not ask the server, loading plain classic: {e.GetType().Name}: {e.Message}");
+                return false;
             }
         }
 

@@ -19,4 +19,8 @@ public class ServerConfig
     // warn | hide | off. See docs/QUESTS.md.
     [JsonPropertyName("questGate")]
     public string QuestGate { get; set; } = "warn";
+
+    // Percent chance that a Classic raid is the Halloween version. Read at every roll, so no restart.
+    [JsonPropertyName("halloweenChance")]
+    public int? HalloweenChance { get; set; } = 50;
 }

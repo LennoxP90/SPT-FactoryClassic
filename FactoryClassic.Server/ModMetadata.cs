@@ -1,10 +1,12 @@
 using JetBrains.Annotations;
 using SPTarkov.Server.Core.Models.Spt.Mod;
+using SPTarkov.Server.Web;
 
 namespace FactoryClassic.Server;
 
 [UsedImplicitly]
-public record ModMetadata : IModMetadata
+// IModBlazorMetadata puts a FactoryClassic card in SIC and routes FactoryClassic.Server.Web's page.
+public record ModMetadata : IModMetadata, IModBlazorMetadata
 {
     public string ModGuid { get; init; } = "com.lennoxp90.factoryclassic";
     public string Name { get; init; } = "FactoryClassic";
@@ -27,4 +29,7 @@ public record ModMetadata : IModMetadata
     };
     public string? Url { get; init; }
     public string License { get; init; } = "MIT";
+    public string? WWWRootUrl { get; init; }
+    public string? HomePage { get; init; } = "/factoryclassic";
+    public string? HomePageDescription { get; init; } = "Set the chance that a Classic raid is the Halloween version";
 }

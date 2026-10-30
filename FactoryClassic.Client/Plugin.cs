@@ -22,6 +22,7 @@ namespace FactoryClassic.Client
         internal static ConfigEntry<bool> WirePortals;
         internal static ConfigEntry<bool> CameraReport;
         internal static ConfigEntry<bool> RepairLootClusters;
+        internal static ConfigEntry<float> HalloweenAmbienceGainDb;
 
         void Awake()
         {
@@ -33,6 +34,11 @@ namespace FactoryClassic.Client
             Safe(nameof(PresetSwap), PresetSwap.Install);
             Safe(nameof(RaidLifecycle), RaidLifecycle.Install);
             Safe(nameof(SpatialAudioRepair), SpatialAudioRepair.Install);
+            Safe(nameof(HalloweenGrade), HalloweenGrade.Install);
+            Safe(nameof(HalloweenShaderRebind), HalloweenShaderRebind.Install);
+            Safe(nameof(HalloweenRegistry), HalloweenRegistry.Install);
+            Safe(nameof(AmbientPlayerRepair), AmbientPlayerRepair.Install);
+            Safe(nameof(HalloweenMixer), HalloweenMixer.Install);
             Safe(nameof(CameraEffectsRepair), CameraEffectsRepair.Install);
             Safe(nameof(CameraInventory), CameraInventory.Install);
             Safe(nameof(LootClusterRepair), LootClusterRepair.Install);
@@ -92,6 +98,12 @@ namespace FactoryClassic.Client
                 "Give the classic tile's loot clusters the connection group and Bot Zone the scene never recorded. Without "
                 + "this the loot-patrol layer can never choose a target and every bot stands on the nearest cover point for "
                 + "the whole raid. Off restores the shipped data, for comparison only.", 26));
+            HalloweenAmbienceGainDb = Config.Bind("Halloween", "AmbienceGainDb", 14f, new ConfigDescription(
+                "How far a Halloween raid lifts the game's ambience channels (AmbientInVolume and AmbientOutVolume), in dB. "
+                + "The event's drones are mastered very quiet; 4 would match the event's own mix (its World bus runs 4 dB "
+                + "above 4.1's), 14 makes them carry. Applies live in a raid; other maps are untouched.",
+                new AcceptableValueRange<float>(0f, 20f), new ConfigurationManagerAttributes { Order = 1 }));
+
             CameraReport = Config.Bind("Diagnostics", "CameraReport", true, Hidden(
                 "Once per Factory raid, log what the render camera and its effects prefab carry, plus the texture "
                 + "streaming globals. Open while the classic tile's dated look is being diagnosed: the answer is the "

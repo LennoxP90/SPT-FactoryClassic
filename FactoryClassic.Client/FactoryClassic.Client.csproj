@@ -27,6 +27,7 @@
     <Reference Include="UnityEngine"><HintPath>$(SptManaged)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(SptManaged)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(SptManaged)\UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AssetBundleModule"><HintPath>$(SptManaged)\UnityEngine.AssetBundleModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.AIModule"><HintPath>$(SptManaged)\UnityEngine.AIModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.AudioModule"><HintPath>$(SptManaged)\UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Mathematics"><HintPath>$(SptManaged)\Unity.Mathematics.dll</HintPath><Private>false</Private></Reference>
@@ -48,6 +49,8 @@
     <MakeDir Directories="$(StageDir)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(StageDir)" />
     <Copy SourceFiles="@(PluginData)" DestinationFiles="@(PluginData->'$(StageDir)plugin-data\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <!-- One corpse list for both halves: the server adds their loot, the client puts back their blanked ids. -->
+    <Copy SourceFiles="$(ProjectDir)..\FactoryClassic.Server\db\halloween\corpses.json" DestinationFolder="$(StageDir)plugin-data\halloween" />
     <Message Importance="high" Text="staged client to $(StageDir)" />
   </Target>
 </Project>
