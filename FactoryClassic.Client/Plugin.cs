@@ -8,9 +8,9 @@ using BepInEx.Logging;
 namespace FactoryClassic.Client
 {
     [BepInPlugin(BuildInfo.Guid, "FactoryClassic", BuildInfo.Version)]
-    // HARD, not soft. It also guarantees MapVariants' Awake has run before ours, which is what makes
-    // calling Maps.Register from Awake legal.
-    [BepInDependency("com.lennoxp90.mapvariants")]
+    // HARD, not soft, and 1.1.0 or later for RegisterVariants (Halloween 2026). It also guarantees
+    // MapVariants' Awake has run before ours, which is what makes registering from Awake legal.
+    [BepInDependency("com.lennoxp90.mapvariants", "1.1.0")]
     // Soft: only so its assembly is loaded before AmandsGraphicsCompat looks for it.
     [BepInDependency("com.Amanda.Graphics", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin

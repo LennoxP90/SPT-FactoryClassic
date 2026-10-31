@@ -41,7 +41,8 @@ public static class ServerConfigFile
 
         root["lootMode"] = config.LootMode;
         root["questGate"] = config.QuestGate;
-        root["halloweenChance"] = config.HalloweenChance;
+        // Halloween is a variant the player picks now; an old file's chance would only mislead.
+        root.Remove("halloweenChance");
 
         var temp = path + ".tmp";
         File.WriteAllText(temp, root.ToJsonString(Indented));

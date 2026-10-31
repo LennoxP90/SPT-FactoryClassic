@@ -18,11 +18,20 @@ namespace FactoryClassic.Shared
         /// </summary>
         public const string MapVariantsUnmanaged = "unmanaged";
 
+        /// <summary>
+        /// The Halloween 2026 variant, declared to MapVariants on both halves. It is Classic's data and scenes
+        /// with the event layer on top, so FromMapVariants folds it to Classic. Stable: other mods key on it.
+        /// </summary>
+        public const string MapVariantsHalloween2026 = "halloween2026";
+
+        public static bool IsHalloween(string? variant)
+            => string.Equals((variant ?? "").Trim(), MapVariantsHalloween2026, StringComparison.OrdinalIgnoreCase);
+
         public static bool IsUnmanaged(string? variant)
             => string.Equals((variant ?? "").Trim(), MapVariantsUnmanaged, StringComparison.OrdinalIgnoreCase);
 
         public static string FromMapVariants(string? variant)
-            => string.Equals((variant ?? "").Trim(), MapVariantsBackport, StringComparison.OrdinalIgnoreCase)
+            => string.Equals((variant ?? "").Trim(), MapVariantsBackport, StringComparison.OrdinalIgnoreCase) || IsHalloween(variant)
                 ? MapVariant.Classic
                 : MapVariant.Original;
 

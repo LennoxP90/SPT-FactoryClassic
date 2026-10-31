@@ -20,6 +20,7 @@ public class MapVariantsBridge(IServiceProvider provider, ISptLogger<MapVariants
     private object? _providers;
     private MethodInfo? _register;
     private MethodInfo? _installedVariant;
+    private MethodInfo? _declareVariant;
     private bool _bound, _reported;
 
     public bool Available => Bind();
@@ -40,6 +41,7 @@ public class MapVariantsBridge(IServiceProvider provider, ISptLogger<MapVariants
         _providers = provider.GetService(type);
         _register = type.GetMethod("Register", [typeof(string), typeof(Location), typeof(Location)]);
         _installedVariant = type.GetMethod("InstalledVariant", [typeof(string)]);
+        _declareVariant = type.GetMethod("DeclareVariant", [typeof(string)]);
 
         if (_providers is null || _register is null || _installedVariant is null)
         {
@@ -69,8 +71,28 @@ public class MapVariantsBridge(IServiceProvider provider, ISptLogger<MapVariants
         }
     }
 
+    // Absent before MapVariants 3.1: then Halloween 2026 is never installed and every raid is plain classic.
+    public bool DeclareVariant(string variant)
+    {
+        if (!Bind()) return false;
+        if (_declareVariant is null)
+        {
+            logger.Warning($"[FC] this MapVariants cannot declare '{variant}'; update it to offer Halloween 2026");
+            return false;
+        }
+        try
+        {
+            return _declareVariant.Invoke(_providers, [variant]) is true;
+        }
+        catch (Exception e)
+        {
+            logger.Error($"[FC] declaring '{variant}' to MapVariants threw: {e}");
+            return false;
+        }
+    }
+
     /// <summary>
-    /// THEIR wire value ("original" or "backport"), or null when the bridge is unavailable.
+    /// THEIR wire value ("original", "backport" or "halloween2026"), or null when the bridge is unavailable.
     /// Translate with VariantVocabulary.FromMapVariants before comparing it to anything of ours.
     /// </summary>
     public string? InstalledVariant(string locationId)

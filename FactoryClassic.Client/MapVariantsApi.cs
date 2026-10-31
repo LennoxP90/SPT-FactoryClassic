@@ -19,7 +19,7 @@ namespace FactoryClassic.Client
         const string KnownApiMajor = "3";
 
         static Type _type;
-        static MethodInfo _register;
+        static MethodInfo _registerVariants;
         static PropertyInfo _currentVariant, _currentLocationId, _apiVersion;
         static EventInfo _variantResolved;
         static bool _looked;
@@ -39,15 +39,16 @@ namespace FactoryClassic.Client
                 return false;
             }
 
-            _register = AccessTools.Method(_type, "Register");
+            // API 3.1 and up; the BepInDependency refuses an older MapVariants before this runs.
+            _registerVariants = AccessTools.Method(_type, "RegisterVariants");
             _currentVariant = AccessTools.Property(_type, "CurrentVariant");
             _currentLocationId = AccessTools.Property(_type, "CurrentLocationId");
             _apiVersion = AccessTools.Property(_type, "ApiVersion");
             _variantResolved = _type.GetEvent("VariantResolved", BindingFlags.Public | BindingFlags.Static);
 
-            if (_register == null || _currentVariant == null || _currentLocationId == null || _variantResolved == null)
+            if (_registerVariants == null || _currentVariant == null || _currentLocationId == null || _variantResolved == null)
                 Plugin.Log.LogError($"[FC] {TypeName} is not the expected layout "
-                                  + $"(Register={_register != null}, CurrentVariant={_currentVariant != null}, "
+                                  + $"(RegisterVariants={_registerVariants != null}, CurrentVariant={_currentVariant != null}, "
                                   + $"CurrentLocationId={_currentLocationId != null}, VariantResolved={_variantResolved != null})");
 
             ReportApiVersion();
@@ -69,12 +70,14 @@ namespace FactoryClassic.Client
                                       string backportTile, string originalTile,
                                       Action<string> onVariant, Func<string[]> backportWarnings)
         {
-            if (!Look() || _register == null) return false;
+            if (!Look() || _registerVariants == null) return false;
             try
             {
-                var result = _register.Invoke(null, new object[]
+                var result = _registerVariants.Invoke(null, new object[]
                 {
-                    locationIds, displayName, backportName, originalName, backportTile, originalTile, onVariant, backportWarnings
+                    locationIds, displayName, backportName, originalName, backportTile, originalTile,
+                    new[] { Shared.VariantVocabulary.MapVariantsHalloween2026 }, new[] { Shared.VariantDisplay.Halloween2026Name },
+                    new[] { HalloweenTile() }, onVariant, backportWarnings
                 });
                 return result is bool ok && ok;
             }
@@ -83,6 +86,13 @@ namespace FactoryClassic.Client
                 Plugin.Log.LogError($"[FC] registering with MapVariants threw: {e}");
                 return false;
             }
+        }
+
+        // Absolute, like the other two tiles. Null until the picture ships, which MapVariants shows as Classic's.
+        static string HalloweenTile()
+        {
+            var path = System.IO.Path.Combine(Plugin.PluginDir, "plugin-data", "ui", "factory_halloween.png");
+            return System.IO.File.Exists(path) ? path : null;
         }
 
         // THEIR wire values. Translate with VariantVocabulary before comparing to anything of ours.

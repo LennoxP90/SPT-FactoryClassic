@@ -13,29 +13,37 @@ public class ServerConfigFileTests : IDisposable
     [Fact]
     public void WritePreservesOtherKeys()
     {
-        File.WriteAllText(_path, """{ "lootMode": "hybrid", "questGate": "hide", "extra": 7, "halloweenChance": 50 }""");
+        File.WriteAllText(_path, """{ "lootMode": "hybrid", "questGate": "hide", "extra": 7 }""");
         var config = ServerConfigFile.Read(_path);
-        config.HalloweenChance = 30;
+        config.QuestGate = "off";
         ServerConfigFile.Write(_path, config);
 
         var json = JsonNode.Parse(File.ReadAllText(_path))!;
         Assert.Equal("hybrid", (string?)json["lootMode"]);
-        Assert.Equal("hide", (string?)json["questGate"]);
+        Assert.Equal("off", (string?)json["questGate"]);
         Assert.Equal(7, (int?)json["extra"]);
-        Assert.Equal(30, (int?)json["halloweenChance"]);
+    }
+
+    // Halloween is a variant the player picks now, so a chance left over from 1.1.0 is dropped on write.
+    [Fact]
+    public void WriteDropsTheRetiredHalloweenChance()
+    {
+        File.WriteAllText(_path, """{ "lootMode": "classic", "halloweenChance": 50 }""");
+        ServerConfigFile.Write(_path, ServerConfigFile.Read(_path));
+        Assert.Null(JsonNode.Parse(File.ReadAllText(_path))!["halloweenChance"]);
     }
 
     [Fact]
     public void ReadRoundTrips()
     {
-        ServerConfigFile.Write(_path, new ServerConfig { HalloweenChance = 30 });
-        Assert.Equal(30, ServerConfigFile.Read(_path).HalloweenChance);
+        ServerConfigFile.Write(_path, new ServerConfig { QuestGate = "hide" });
+        Assert.Equal("hide", ServerConfigFile.Read(_path).QuestGate);
     }
 
     [Fact]
     public void ReadMalformedReturnsDefaults()
     {
         File.WriteAllText(_path, "{ not json");
-        Assert.Equal(50, ServerConfigFile.Read(_path).HalloweenChance);
+        Assert.Equal("warn", ServerConfigFile.Read(_path).QuestGate);
     }
 }

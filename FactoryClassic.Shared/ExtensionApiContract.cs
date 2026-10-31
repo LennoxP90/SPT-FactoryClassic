@@ -8,7 +8,7 @@ namespace FactoryClassic.Shared
     /// </summary>
     public static class ExtensionApiContract
     {
-        public const string Version = "1.0";
+        public const string Version = "1.1";
 
         public const string DayLocationId = "factory4_day";
         public const string NightLocationId = "factory4_night";

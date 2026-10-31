@@ -27,13 +27,38 @@
       <MudAlert Severity="@severity" Class="mb-4" ShowCloseIcon="true" CloseIconClicked="@(() => message = null)">@message</MudAlert>
     }
 
-    <MudPaper Class="pa-6" Elevation="2">
-      <MudText Typo="Typo.h6">Halloween</MudText>
+    <MudAlert Severity="Severity.Info" Class="mb-4">
+      Both settings are read when the server starts, so a change applies after the next server restart.
+      Halloween 2026 is not set here: players pick it on the map screen as its own Factory variant.
+    </MudAlert>
+
+    <MudPaper Class="pa-6 mb-4" Elevation="2">
+      <MudText Typo="Typo.h6">Loot</MudText>
       <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-        The chance that a Classic raid is the Halloween version. Read at the start of each raid. A raid in progress keeps its result.
+        Classic keeps the 3.9.8 loot tables as they were. Hybrid adds 4.1's items alongside them. Modern replaces
+        them with 4.1's.
       </MudText>
-      <MudNumericField T="int" Label="Halloween chance (%)" Min="0" Max="100" Variant="Variant.Outlined"
-                       Value="@chance" ValueChanged="@(v => { chance = v; dirty = true; })" />
+      <MudSelect T="string" Label="Loot mode" Variant="Variant.Outlined"
+                 Value="@config.LootMode" ValueChanged="@(v => { config.LootMode = v; dirty = true; })">
+        <MudSelectItem Value="@("classic")">Classic</MudSelectItem>
+        <MudSelectItem Value="@("hybrid")">Hybrid</MudSelectItem>
+        <MudSelectItem Value="@("modern")">Modern</MudSelectItem>
+      </MudSelect>
+    </MudPaper>
+
+    <MudPaper Class="pa-6" Elevation="2">
+      <MudText Typo="Typo.h6">Quests</MudText>
+      <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+        For the quests that cannot be finished on Classic. Warn names any the player has accepted in the map choice
+        window and asks them to confirm. Hide also keeps them off the trader board while both Factory locations
+        serve Classic. Off says nothing.
+      </MudText>
+      <MudSelect T="string" Label="Quest gate" Variant="Variant.Outlined"
+                 Value="@config.QuestGate" ValueChanged="@(v => { config.QuestGate = v; dirty = true; })">
+        <MudSelectItem Value="@("warn")">Warn</MudSelectItem>
+        <MudSelectItem Value="@("hide")">Hide</MudSelectItem>
+        <MudSelectItem Value="@("off")">Off</MudSelectItem>
+      </MudSelect>
     </MudPaper>
 
   </MudContainer>
@@ -41,7 +66,6 @@
 
 @code {
   private ServerConfig config = new();
-  private int chance;
   private bool dirty;
   private string? message;
   private Severity severity = Severity.Info;
@@ -51,7 +75,6 @@
   private void Reload()
   {
     config = ServerConfigFile.Read(ServerConfigFile.DefaultPath);
-    chance = FactoryClassic.Shared.HalloweenRoll.Clamp(config.HalloweenChance);
     dirty = false;
   }
 
@@ -59,10 +82,9 @@
   {
     try
     {
-      config.HalloweenChance = FactoryClassic.Shared.HalloweenRoll.Clamp(chance);
       ServerConfigFile.Write(ServerConfigFile.DefaultPath, config);
       dirty = false;
-      (message, severity) = ($"Saved. The next raid rolls at {config.HalloweenChance}%.", Severity.Success);
+      (message, severity) = ("Saved. Restart the server for it to apply.", Severity.Success);
     }
     catch (Exception e)
     {

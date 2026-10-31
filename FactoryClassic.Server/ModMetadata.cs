@@ -25,11 +25,12 @@ public record ModMetadata : IModMetadata, IModBlazorMetadata
     // the call. Open-ended would load anyway and fail at the map screen instead of at load.
     public Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; } = new()
     {
-        ["com.lennoxp90.mapvariants"] = new SemanticVersioning.Range(">=1.0.0 <2.0.0"),
+        // 1.1.0 for DeclareVariant, which Halloween 2026 needs.
+        ["com.lennoxp90.mapvariants"] = new SemanticVersioning.Range(">=1.1.0 <2.0.0"),
     };
     public string? Url { get; init; }
     public string License { get; init; } = "MIT";
     public string? WWWRootUrl { get; init; }
     public string? HomePage { get; init; } = "/factoryclassic";
-    public string? HomePageDescription { get; init; } = "Set the chance that a Classic raid is the Halloween version";
+    public string? HomePageDescription { get; init; } = "Set the Classic loot mode and the quest gate";
 }

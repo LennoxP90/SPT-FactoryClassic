@@ -74,6 +74,7 @@ public class VariantRegistry(
     {
         if (!HasClassic(locationId)) return;
 
+        mapVariants.DeclareVariant(VariantVocabulary.MapVariantsHalloween2026);
         if (mapVariants.Register(locationId, _vanilla[locationId], _classic[locationId]))
         {
             _handedOver.Add(locationId);
@@ -100,7 +101,7 @@ public class VariantRegistry(
             logger.Info($"[FC] {locationId} classic dataset built: {counts}");
             try
             {
-                var corpses = HalloweenLoot.Apply(_classic[locationId], vanilla, root, locationId, jsonUtil, id => halloween.Outcome(id, ""));
+                var corpses = HalloweenLoot.Apply(_classic[locationId], vanilla, root, locationId, jsonUtil, halloween.IsHalloween);
                 logger.Info($"[FC] {locationId}: {corpses} Halloween corpse container(s) join the classic table on a Halloween raid");
             }
             catch (Exception e)

@@ -19,6 +19,16 @@ namespace FactoryClassic.Client.Api
             }
         }
 
+        // Filtered the same way: another map's declared variant must not read as Halloween Factory.
+        internal static bool IsHalloween
+        {
+            get
+            {
+                var locationId = MapVariantsApi.CurrentLocationId;
+                return locationId != null && Factory.IsFactory(locationId) && VariantVocabulary.IsHalloween(MapVariantsApi.CurrentVariant);
+            }
+        }
+
         // Handlers are wrapped so a non-Factory raid is swallowed rather than forwarded, which keeps
         // the event's contract at what a 0.2.0 consumer already relies on.
         static readonly Dictionary<Action<string>, Action<string>> Filters = new Dictionary<Action<string>, Action<string>>();
@@ -59,6 +69,9 @@ namespace FactoryClassic.Client.Api
         public const string Classic = MapVariant.Classic;
         public const string Original = MapVariant.Original;
 
+        /// <summary>MapVariants' id for Halloween 2026 (API 1.1). Stable: key on it.</summary>
+        public const string Halloween2026 = VariantVocabulary.MapVariantsHalloween2026;
+
         public static string ApiVersion => ExtensionApiContract.Version;
 
         /// <summary>
@@ -68,6 +81,12 @@ namespace FactoryClassic.Client.Api
         public static string CurrentVariant => VariantSource.Current;
 
         public static bool IsClassic => MapVariant.IsClassic(CurrentVariant);
+
+        /// <summary>
+        /// True when this Factory raid is Halloween 2026 (API 1.1). CurrentVariant still reads "classic"
+        /// then, because Halloween 2026 is the classic map with the event layer on top.
+        /// </summary>
+        public static bool IsHalloween => VariantSource.IsHalloween;
 
         public static bool Decided => CurrentVariant != null;
 

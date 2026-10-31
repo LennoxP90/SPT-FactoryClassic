@@ -9,16 +9,16 @@ This mod points the preset at them instead, and serves the matching loot, spawn 
 
 The classic map itself ships no assets. The one asset in the archive is the Halloween bundle below.
 
-> **1.1.0 adds Halloween Factory.** A classic raid has a chance (50% by default) to be the version of
+> **Halloween 2026 is its own tile.** Pick it on the map screen to load the version of
 > classic Factory from EFT's 1.3.0 Halloween event: gore, lootable corpses, event lights, the event's
 > grey grade and its own ambience. Please report anything odd rather than assuming it is meant to be
 > that way - see [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
 
 ## Halloween Factory
 
-- **Rolled on the server, per raid.** Whenever a raid loads Factory - Classic, day or night, the server
-  rolls `halloweenChance` once, and every player in that raid gets the same answer. Picking Vanilla never
-  rolls. The roll is not tied to SPT's seasonal events.
+- **Picked, not rolled.** The map screen offers Factory - Vanilla, Factory - Classic and Factory -
+  Halloween 2026, day or night, and every player in that raid loads what the host picked. It is not tied
+  to SPT's seasonal events. Needs MapVariants 1.1 or later: with an older one FactoryClassic does not load, and BepInEx and the server log say why.
 - **What changes:** the event's props, gore and corpses on top of the classic map, its lights, a grey
   colour grade that keeps reds, and its ambience (two scary drones, distant zombies, flying ghosts, rats).
   The 65 corpses are lootable, from 4.1 Factory's own PMC corpse pool.
@@ -41,17 +41,15 @@ the ones already there. Restart the server.
 
 ## Configuration
 
-Server side, in `user/mods/LennoxP90-FactoryClassic/config/config.json`. `halloweenChance` is read at
-the start of every raid and can also be set from the FactoryClassic page in the server's web interface;
-the others are read once at load, so a change needs a server restart. None of them touch the Factory SPT
-ships.
+Server side, in `user/mods/LennoxP90-FactoryClassic/config/config.json`, or from the FactoryClassic page
+in the server's web interface. They are read once at load, so a change needs a server restart. None of
+them touch the Factory SPT ships.
 
 | key | values | what it does |
 |---|---|---|
 | `variant` | ignored | **Deprecated and does nothing.** Which tile you get when nobody picks one is MapVariants' question now. The key is still read so an existing `config.json` loads, and a value other than `classic` is reported in the server log rather than silently dropped. |
 | `lootMode` | `classic`, `hybrid`, `modern` | `classic` serves the 3.9.8 loot tables untouched. `hybrid` adds the 464 day / 476 night item templates 4.1 spawns on Factory that the old tables never had, each at the classic spawn point nearest where 4.1 puts it. `modern` rebuilds every point from 4.1's pool instead of adding to it. |
 | `questGate` | `warn`, `hide`, `off` | What to do about the six quests the classic tile cannot satisfy. See [`docs/QUESTS.md`](docs/QUESTS.md). |
-| `halloweenChance` | `0` to `100`, default `50` | The percent chance a classic raid is Halloween Factory. `0` turns it off, `100` makes every classic raid Halloween. A raid in progress keeps its result. |
 
 Client side, in BepInEx's config for `com.lennoxp90.factoryclassic`: the two audio switches, the
 loot-cluster repair and the camera diagnostic, all described in
@@ -61,7 +59,7 @@ during a Halloween raid only, and can be moved live in a raid from the F12 menu.
 
 **The two choice settings moved to MapVariants.** `PromptSelection` is now
 `com.lennoxp90.mapvariants` -> `General` -> `PromptSelection`, and `DefaultSelection` is under that
-mod's `Factory` section, offering `Classic` and `Vanilla`. Copies left behind in an older
+mod's `Factory` section, offering `Classic`, `Vanilla` and `Halloween 2026`. Copies left behind in an older
 FactoryClassic config are ignored; delete them or leave them, it makes no difference.
 
 ## Known limitations
@@ -80,13 +78,13 @@ FactoryClassic config are ignored; delete them or leave them, it makes no differ
   burning-meat loop and the transformer sparks, exist only in the event build and are silent.
 - **The Halloween bundle is built against the SPT 4.1 client (EFT 0.16.9.5.40743)** and reads assets out of
   it. A different client build needs a rebuilt bundle.
-- **Halloween Factory in Fika:** the roll is shared through the server and has been checked across
-  sessions, but a full two-client raid and a headless-hosted raid have not been played yet.
+- **Halloween Factory in Fika:** every peer reads the host's pick from the server, but a full two-client
+  raid and a headless-hosted raid have not been played yet.
 
 ## For mod authors
 
-This mod publishes which Factory a raid is loading, so another mod can stop showing the wrong
-layout. See [`docs/EXTENDING.md`](docs/EXTENDING.md). To offer variants of a map of your own, register
+This mod publishes which Factory a raid is loading, Halloween 2026 included, so another mod can stop
+showing the wrong layout or add content to the event map. See [`docs/EXTENDING.md`](docs/EXTENDING.md). To offer variants of a map of your own, register
 with MapVariants rather than building a second prompt.
 
 ## Licence

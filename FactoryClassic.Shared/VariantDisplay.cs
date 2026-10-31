@@ -10,6 +10,7 @@ namespace FactoryClassic.Shared
         public const string MapName = "Factory";
         public const string ClassicName = "Classic";
         public const string VanillaName = "Vanilla";
+        public const string Halloween2026Name = "Halloween 2026";
 
         public const string Separator = " - ";
 

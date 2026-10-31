@@ -39,17 +39,17 @@ What should **not** appear:
 
 ## A Halloween raid
 
-The server log names the roll, and how many corpse containers it added:
+The server log names the pick, and how many corpse containers it added at load:
 
 ```
 [FC] factory4_day: 65 Halloween corpse container(s) join the classic table on a Halloween raid
-[FC] 'factory4_day' rolled HALLOWEEN for this raid
+[MV] <session> chose 'halloween2026' for 'factory4_day'; the table now serves HALLOWEEN2026, ...
 ```
 
 The client log, from one Halloween raid:
 
 ```
-[Halloween] server says factory4_day is HALLOWEEN
+[PresetSwap] MapVariants says Factory - Classic (Halloween 2026)
 [Halloween] bundle loaded: FactoryClassic_Halloween, FactoryClassic_Halloween_Light, FactoryClassic_Halloween_Sound
 [PresetSwap] Base preset now loads 7 classic scene(s)
 [AmbientRepair] told 38 event sound changer(s) it is Halloween

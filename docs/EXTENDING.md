@@ -44,9 +44,11 @@ type of ours you have to bind to.
 |---|---|---|
 | `DayLocationId`, `NightLocationId` | `const string` | `factory4_day`, `factory4_night` |
 | `Classic`, `Original` | `const string` | `"classic"`, `"original"` - the two variant values |
-| `ApiVersion` | `string` | Contract version, currently `1.0` |
+| `Halloween2026` | `const string` | `"halloween2026"` - MapVariants' id for Halloween 2026 (1.1) |
+| `ApiVersion` | `string` | Contract version, currently `1.1` |
 | `CurrentVariant` | `string` | The variant for this raid, **or null** |
 | `IsClassic` | `bool` | Shorthand for `CurrentVariant == "classic"` |
+| `IsHalloween` | `bool` | Whether this Factory raid is Halloween 2026 (1.1) |
 | `Decided` | `bool` | Whether the variant is known yet |
 | `ClassicSceneLoaded` | `bool` | Whether the classic scenes are loaded **right now** |
 | `DisplayName(string variant)` | `string` | `"Factory - Classic"` or `"Factory - Vanilla"` |
@@ -85,6 +87,27 @@ player is shown is `Factory - Classic` and `Factory - Vanilla`. Use `DisplayName
 inventing wording, and note that **the word "rework" must not appear in anything a player reads**: it
 is BSG's folder name for the *current* map, so it names the opposite tile.
 
+## Halloween 2026
+
+Halloween 2026 is a third tile on the map screen, picked by the player like the other two. It is the
+classic map with the 1.3.0 event layer on top, so on a Halloween raid **`CurrentVariant` is `classic`**
+and `IsClassic` is true; `IsHalloween` is what tells it apart. It is never rolled and never tied to
+SPT's seasonal events.
+
+**Client.** Read `IsHalloween` once the variant is decided, or in a `VariantResolved` handler. To act
+when the event scenes are in, wait for scene load and check for `FactoryClassic_Halloween`: a quest
+zone, a spawn marker or anything else you add to the map is a GameObject you create in that scene
+after it loads. Every peer of a Fika raid and the headless resolve the same variant, because they all
+read it from the server.
+
+**Server.** MapVariants answers which variant a location is serving. Resolve
+`MapVariants.Server.Variants.Providers` from the DI container by type name, as this mod does in
+`FactoryClassic.Server/MapVariantsBridge.cs`, and call `InstalledVariant("factory4_day")` (or night):
+it returns `"halloween2026"` while a Halloween raid is being built and served. Read it when you need
+it, not at load: it changes with each player's pick.
+
+The id is stable. A later event would get its own id rather than reusing this one.
+
 ## Prompting on the map screen yourself
 
 **This mod no longer patches the map screen at all.** Since 0.3.0 the prompt, the transit prompt and
@@ -103,7 +126,7 @@ traps that make it fiddly.
 At load the mod logs its own surface exactly as reflection sees it:
 
 ```
-[Api] FactoryClassic.Client.Api.Factory v1.0
+[Api] FactoryClassic.Client.Api.Factory v1.1
 [Api]   const: DayLocationId=factory4_day, NightLocationId=factory4_night, Classic=classic, Original=original
 [Api]   props: ApiVersion:String, CurrentVariant:String, IsClassic:Boolean, ...
 ```

@@ -9,6 +9,8 @@ public class VariantVocabularyTests
     [InlineData("backport", MapVariant.Classic)]
     [InlineData("BACKPORT", MapVariant.Classic)]
     [InlineData("  backport  ", MapVariant.Classic)]
+    [InlineData("halloween2026", MapVariant.Classic)]   // Classic's data and scenes, plus the event layer
+    [InlineData("HALLOWEEN2026", MapVariant.Classic)]
     [InlineData("original", MapVariant.Original)]
     [InlineData("unmanaged", MapVariant.Original)]
     [InlineData("classic", MapVariant.Original)]   // THEIR wire value is never "classic"

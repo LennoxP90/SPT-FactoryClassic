@@ -30,6 +30,10 @@ namespace FactoryClassic.Client
         static string _raidVariant;
         static bool _raidHalloween;
 
+        // MapVariants' last answer was Halloween 2026. Kept beside _variant because our own vocabulary
+        // folds it to Classic, which it is, plus the event layer.
+        static bool _halloween;
+
         internal static string Variant => _variant;
 
         internal static void SetVariant(string variant) => _variant = MapVariant.Normalise(variant);
@@ -42,6 +46,7 @@ namespace FactoryClassic.Client
         internal static void OnMapVariantsAnswer(string theirVariant)
         {
             var ours = VariantVocabulary.FromMapVariants(theirVariant);
+            _halloween = VariantVocabulary.IsHalloween(theirVariant);
 
             if (MapVariant.IsClassic(ours) && !ServerManagesFactory(out var locationId))
             {
@@ -49,11 +54,12 @@ namespace FactoryClassic.Client
                                   + $"'{locationId ?? "factory"}'. Loading the shipped Factory instead: the location table holds "
                                   + "the shipped data and the two must agree.");
                 SetVariant(MapVariant.Original);
+                _halloween = false;
                 return;
             }
 
             SetVariant(ours);
-            Plugin.Log.LogInfo($"[PresetSwap] MapVariants says {VariantDisplay.For(ours)}");
+            Plugin.Log.LogInfo($"[PresetSwap] MapVariants says {VariantDisplay.For(ours)}{(_halloween ? " (Halloween 2026)" : "")}");
         }
 
         // MapVariants says "backport" whenever nobody has answered, which is only right when our
@@ -124,7 +130,7 @@ namespace FactoryClassic.Client
                 // so MapVariants hands us the DAY answer mid-load.
                 var root = FactoryScenes.IsRoot(kind);
                 var variant = root ? (_raidVariant = Variant) : (_raidVariant ?? Variant);
-                if (root) _raidHalloween = variant == MapVariant.Classic && AskHalloween(kind) && HalloweenBundle.Ensure();
+                if (root) _raidHalloween = variant == MapVariant.Classic && _halloween && HalloweenBundle.Ensure();
 
                 if (variant != MapVariant.Classic) Revert(keys, snapshot, kind);
                 else
@@ -142,25 +148,6 @@ namespace FactoryClassic.Client
         }
 
         internal static bool HalloweenLoaded() => SceneLoaded(FactoryScenes.HalloweenScene);
-
-        // The server rolls once per raid and holds the answer, so every peer asking gets the same one.
-        // Any failure is plain classic.
-        static bool AskHalloween(PresetKind kind)
-        {
-            var location = kind == PresetKind.Night ? ExtensionApiContract.NightLocationId : ExtensionApiContract.DayLocationId;
-            try
-            {
-                var json = RequestHandler.PostJson("/factoryclassic/halloween", JsonConvert.SerializeObject(new { location }));
-                var halloween = !string.IsNullOrWhiteSpace(json) && (bool?)JObject.Parse(json)["halloween"] == true;
-                Plugin.Log.LogInfo($"[Halloween] server says {location} is {(halloween ? "HALLOWEEN" : "plain classic")}");
-                return halloween;
-            }
-            catch (Exception e)
-            {
-                Plugin.Log.LogWarning($"[Halloween] could not ask the server, loading plain classic: {e.GetType().Name}: {e.Message}");
-                return false;
-            }
-        }
 
         static IList KeyList(ScenesPreset preset)
         {
