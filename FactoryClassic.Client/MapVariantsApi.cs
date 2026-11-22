@@ -19,7 +19,7 @@ namespace FactoryClassic.Client
         const string KnownApiMajor = "3";
 
         static Type _type;
-        static MethodInfo _registerVariants;
+        static MethodInfo _registerVariants, _registerSource;
         static PropertyInfo _currentVariant, _currentLocationId, _apiVersion;
         static EventInfo _variantResolved;
         static bool _looked;
@@ -41,6 +41,8 @@ namespace FactoryClassic.Client
 
             // API 3.1 and up; the BepInDependency refuses an older MapVariants before this runs.
             _registerVariants = AccessTools.Method(_type, "RegisterVariants");
+            // 1.2.0 and up; absent before, and then RegisterVariants is used.
+            _registerSource = AccessTools.Method(_type, "RegisterSource");
             _currentVariant = AccessTools.Property(_type, "CurrentVariant");
             _currentLocationId = AccessTools.Property(_type, "CurrentLocationId");
             _apiVersion = AccessTools.Property(_type, "ApiVersion");
@@ -87,6 +89,29 @@ namespace FactoryClassic.Client
                 return false;
             }
         }
+
+        /// <summary>MapVariants 1.2.0 and up: Classic and Halloween 2026 register as two sources.</summary>
+        internal static bool HasSources => Look() && _registerSource != null;
+
+        internal static bool RegisterSource(string[] locationIds, string displayName, string variantId, string variantName,
+                                            string originalName, string variantTile, string originalTile,
+                                            Action<string> onVariant, Func<string[]> warnings)
+        {
+            if (!HasSources) return false;
+            try
+            {
+                var result = _registerSource.Invoke(null, new object[]
+                    { locationIds, displayName, variantId, variantName, originalName, variantTile, originalTile, onVariant, warnings });
+                return result is bool ok && ok;
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogError($"[FC] registering source '{variantId}' with MapVariants threw: {e}");
+                return false;
+            }
+        }
+
+        internal static string HalloweenTilePath => HalloweenTile();
 
         // Absolute, like the other two tiles. Null until the picture ships, which MapVariants shows as Classic's.
         static string HalloweenTile()

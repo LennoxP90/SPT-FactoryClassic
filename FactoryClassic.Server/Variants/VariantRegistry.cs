@@ -8,6 +8,7 @@ using SPTarkov.Server.Core.Models.Spt.Tables;
 using SPTarkov.Server.Core.Utils;
 using SysPath = System.IO.Path;
 using Location = SPTarkov.Server.Core.Models.Eft.Common.Location;
+using LocationBase = SPTarkov.Server.Core.Models.Eft.Common.LocationBase;
 
 namespace FactoryClassic.Server.Variants;
 
@@ -74,6 +75,36 @@ public class VariantRegistry(
     {
         if (!HasClassic(locationId)) return;
 
+        // MapVariants 1.2.0 and up: Classic and Halloween 2026 are two sources, so another mod's Factory can sit
+        // beside them. Halloween serves Classic's data under its own Base, which is how MapVariants tells the two
+        // apart; its corpse loot already switches on the installed id.
+        if (mapVariants.HasSources)
+        {
+            var classic = _classic[locationId];
+            var halloweenRaid = new Location
+            {
+                Base = jsonUtil.Deserialize<LocationBase>(jsonUtil.Serialize(classic.Base)!)!,
+                LooseLoot = classic.LooseLoot,
+                StaticLoot = classic.StaticLoot,
+                StaticContainers = classic.StaticContainers,
+                StaticAmmo = classic.StaticAmmo,
+                Statics = classic.Statics,
+                AllExtracts = classic.AllExtracts,
+            };
+            if (mapVariants.RegisterSource(locationId, VariantVocabulary.MapVariantsClassic, classic)
+                && mapVariants.RegisterSource(locationId, VariantVocabulary.MapVariantsHalloween2026, halloweenRaid))
+            {
+                _handedOver.Add(locationId);
+                logger.Info($"[FC] {locationId} handed to MapVariants as sources '{VariantVocabulary.MapVariantsClassic}' and "
+                          + $"'{VariantVocabulary.MapVariantsHalloween2026}'");
+            }
+            else
+            {
+                logger.Error($"[FC] {locationId} could NOT be handed to MapVariants as sources; look for a [MV] source refused line");
+            }
+            return;
+        }
+
         mapVariants.DeclareVariant(VariantVocabulary.MapVariantsHalloween2026);
         if (mapVariants.Register(locationId, _vanilla[locationId], _classic[locationId]))
         {
@@ -88,15 +119,19 @@ public class VariantRegistry(
 
     private void Register(string root, string locationId)
     {
-        var vanilla = locationTable.GetLocation(locationId);
-        if (vanilla is null) { logger.Error($"[FC] no location '{locationId}'; the classic tile will not be available"); return; }
+        var live = locationTable.GetLocation(locationId);
+        if (live is null) { logger.Error($"[FC] no location '{locationId}'; the classic tile will not be available"); return; }
+
+        // Built from the shipped map when MapVariants keeps one (1.2.0 and up): by PostLoad the live location may
+        // already be another mod's Factory.
+        var vanilla = mapVariants.Shipped(locationId) ?? live;
 
         var dir = SysPath.Combine(root, "db", "classic", locationId);
         if (!Directory.Exists(dir)) { logger.Error($"[FC] {dir} is missing; '{locationId}' stays vanilla only"); return; }
 
         try
         {
-            _vanilla[locationId] = vanilla;
+            _vanilla[locationId] = live;
             _classic[locationId] = ClassicDataset.Build(vanilla, dir, _lootMode, jsonUtil, out var counts);
             logger.Info($"[FC] {locationId} classic dataset built: {counts}");
             try

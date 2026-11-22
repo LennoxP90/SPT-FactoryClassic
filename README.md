@@ -32,6 +32,9 @@ The classic map itself ships no assets. The one asset in the archive is the Hall
 - **MapVariants** (`com.lennoxp90.mapvariants`), required, not optional. It owns the map-screen
   choice, the transit prompt and the loading label for every map that has a second version, this one
   included. Without it neither half of this mod loads and Factory is the map SPT ships.
+  With **MapVariants 1.2.0 or later**, Classic and Halloween 2026 are offered as their own versions of
+  Factory, so another mod's Factory can be offered beside them. With 1.1, FactoryClassic must be the only
+  mod offering Factory.
 - Fika is optional and supported, headless hosting included
 
 ## Install

@@ -24,14 +24,28 @@ namespace FactoryClassic.Shared
         /// </summary>
         public const string MapVariantsHalloween2026 = "halloween2026";
 
+        /// <summary>
+        /// Classic's own id when MapVariants (1.2.0 and up) holds it as a source. Its callback still hears "backport";
+        /// only CurrentVariant and InstalledVariant name it, so FromMapVariants reads it as Classic.
+        /// </summary>
+        public const string MapVariantsClassic = "classic";
+
         public static bool IsHalloween(string? variant)
             => string.Equals((variant ?? "").Trim(), MapVariantsHalloween2026, StringComparison.OrdinalIgnoreCase);
 
         public static bool IsUnmanaged(string? variant)
             => string.Equals((variant ?? "").Trim(), MapVariantsUnmanaged, StringComparison.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// MapVariants 1.2.0 and up: Classic and Halloween 2026 are two sources, each told only whether it was chosen.
+        /// This is the one answer PresetSwap has always taken, in MapVariants' 1.1 words.
+        /// </summary>
+        public static string FromSources(bool classicChosen, bool halloweenChosen)
+            => halloweenChosen ? MapVariantsHalloween2026 : classicChosen ? MapVariantsBackport : MapVariantsOriginal;
+
         public static string FromMapVariants(string? variant)
-            => string.Equals((variant ?? "").Trim(), MapVariantsBackport, StringComparison.OrdinalIgnoreCase) || IsHalloween(variant)
+            => string.Equals((variant ?? "").Trim(), MapVariantsBackport, StringComparison.OrdinalIgnoreCase)
+               || string.Equals((variant ?? "").Trim(), MapVariantsClassic, StringComparison.OrdinalIgnoreCase) || IsHalloween(variant)
                 ? MapVariant.Classic
                 : MapVariant.Original;
 

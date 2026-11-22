@@ -21,6 +21,7 @@ public class MapVariantsBridge(IServiceProvider provider, ISptLogger<MapVariants
     private MethodInfo? _register;
     private MethodInfo? _installedVariant;
     private MethodInfo? _declareVariant;
+    private MethodInfo? _registerSource, _shipped;
     private bool _bound, _reported;
 
     public bool Available => Bind();
@@ -42,6 +43,9 @@ public class MapVariantsBridge(IServiceProvider provider, ISptLogger<MapVariants
         _register = type.GetMethod("Register", [typeof(string), typeof(Location), typeof(Location)]);
         _installedVariant = type.GetMethod("InstalledVariant", [typeof(string)]);
         _declareVariant = type.GetMethod("DeclareVariant", [typeof(string)]);
+        // MapVariants 1.2.0 and up. Absent before that, and then Register and DeclareVariant are used.
+        _registerSource = type.GetMethod("RegisterSource", [typeof(string), typeof(string), typeof(Location)]);
+        _shipped = type.GetMethod("Shipped", [typeof(string)]);
 
         if (_providers is null || _register is null || _installedVariant is null)
         {
@@ -69,6 +73,24 @@ public class MapVariantsBridge(IServiceProvider provider, ISptLogger<MapVariants
             logger.Error($"[FC] handing '{locationId}' to MapVariants threw; that location keeps whatever the table holds: {e}");
             return false;
         }
+    }
+
+    /// <summary>MapVariants 1.2.0 and up: Classic and Halloween 2026 join a map as sources, beside any other mod's Factory.</summary>
+    public bool HasSources => Bind() && _registerSource is not null && _shipped is not null;
+
+    public bool RegisterSource(string locationId, string variantId, Location variant)
+    {
+        if (!HasSources) return false;
+        try { return _registerSource!.Invoke(_providers, [locationId, variantId, variant]) is true; }
+        catch (Exception e) { logger.Error($"[FC] handing '{locationId}' to MapVariants as source '{variantId}' threw: {e}"); return false; }
+    }
+
+    /// <summary>The shipped location as MapVariants captured it before any mod's Preload, or null before 1.2.0.</summary>
+    public Location? Shipped(string locationId)
+    {
+        if (!HasSources) return null;
+        try { return _shipped!.Invoke(_providers, [locationId]) as Location; }
+        catch (Exception e) { logger.Warning($"[FC] reading the shipped '{locationId}' from MapVariants threw, the live one is used: {e.Message}"); return null; }
     }
 
     // Absent before MapVariants 3.1: then Halloween 2026 is never installed and every raid is plain classic.

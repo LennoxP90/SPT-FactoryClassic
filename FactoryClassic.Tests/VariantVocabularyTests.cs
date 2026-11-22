@@ -13,7 +13,7 @@ public class VariantVocabularyTests
     [InlineData("HALLOWEEN2026", MapVariant.Classic)]
     [InlineData("original", MapVariant.Original)]
     [InlineData("unmanaged", MapVariant.Original)]
-    [InlineData("classic", MapVariant.Original)]   // THEIR wire value is never "classic"
+    [InlineData("classic", MapVariant.Classic)]    // Classic's own id when it is a source (MapVariants 1.2.0 and up)
     [InlineData("", MapVariant.Original)]
     [InlineData(null, MapVariant.Original)]
     public void FromMapVariants_maps_their_words_to_ours(string? theirs, string ours)
@@ -55,4 +55,13 @@ public class VariantVocabularyTests
     [InlineData(null, false)]
     public void IsUnmanaged_is_separate_from_the_variant(string? value, bool expected)
         => Assert.Equal(expected, VariantVocabulary.IsUnmanaged(value));
+
+    // The two sources' words, combined into the one answer PresetSwap takes.
+    [Theory]
+    [InlineData(false, false, "original")]
+    [InlineData(true, false, "backport")]
+    [InlineData(false, true, "halloween2026")]
+    [InlineData(true, true, "halloween2026")]    // never both from MapVariants; Halloween wins if it were
+    public void FromSources_combines_the_two_words(bool classic, bool halloween, string expected)
+        => Assert.Equal(expected, VariantVocabulary.FromSources(classic, halloween));
 }

@@ -59,6 +59,8 @@ namespace FactoryClassic.Client
         // itself, so passing the full label would render "Factory - Factory - Classic".
         static void RegisterWithMapVariants()
         {
+            if (MapVariantsApi.HasSources) { RegisterSources(); return; }
+
             var registered = MapVariantsApi.Register(
                 new[] { Shared.ExtensionApiContract.DayLocationId, Shared.ExtensionApiContract.NightLocationId },
                 Shared.VariantDisplay.MapName,
@@ -73,6 +75,30 @@ namespace FactoryClassic.Client
             else Log.LogError("[FC] MapVariants refused the registration; the shipped Factory loads and nothing is offered. "
                             + "Look for a [MV] Register refused line above this one.");
         }
+
+        // MapVariants 1.2.0 and up: Classic and Halloween 2026 as two sources, so another mod's Factory can sit beside
+        // them. Each source's callback hears "backport" for itself and "original" for anything else, and MapVariants
+        // tells every source of a map in one pass, in registration order. Halloween registers first and only records
+        // its word; Classic, told last, hands PresetSwap the combined answer once, so no choice passes through an
+        // in-between one (which could load or drop the Halloween bundle for nothing).
+        static void RegisterSources()
+        {
+            var ids = new[] { Shared.ExtensionApiContract.DayLocationId, Shared.ExtensionApiContract.NightLocationId };
+            var halloween = MapVariantsApi.RegisterSource(ids, Shared.VariantDisplay.MapName,
+                Shared.VariantVocabulary.MapVariantsHalloween2026, Shared.VariantDisplay.Halloween2026Name, Shared.VariantDisplay.VanillaName,
+                MapVariantsApi.HalloweenTilePath, TilePath("factory_vanilla.png"),
+                word => _halloweenChosen = word == Shared.VariantVocabulary.MapVariantsBackport, QuestGateSync.Warnings);
+            var classic = MapVariantsApi.RegisterSource(ids, Shared.VariantDisplay.MapName,
+                Shared.VariantVocabulary.MapVariantsClassic, Shared.VariantDisplay.ClassicName, Shared.VariantDisplay.VanillaName,
+                TilePath("factory_classic.png"), TilePath("factory_vanilla.png"),
+                word => PresetSwap.OnMapVariantsAnswer(Shared.VariantVocabulary.FromSources(
+                    word == Shared.VariantVocabulary.MapVariantsBackport, _halloweenChosen)), QuestGateSync.Warnings);
+
+            if (halloween && classic) Log.LogInfo("[FC] registered Classic and Halloween 2026 with MapVariants as sources");
+            else Log.LogError($"[FC] MapVariants refused a source (Classic={classic}, Halloween 2026={halloween}); look for a [MV] RegisterSource refused line");
+        }
+
+        static bool _halloweenChosen;
 
         // Absolute. MapVariants resolves a tile against its OWN plugin directory, so a relative path
         // is looked for in their folder and the miss is silent.
