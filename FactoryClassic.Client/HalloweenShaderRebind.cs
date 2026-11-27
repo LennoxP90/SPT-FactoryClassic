@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using HarmonyLib;
 using FactoryClassic.Shared;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,7 +18,27 @@ namespace FactoryClassic.Client
         internal static void Install()
         {
             SceneManager.sceneLoaded += OnSceneLoaded;
+            new Harmony(BuildInfo.Guid + ".decalrebind").Patch(AccessTools.Method(typeof(StaticDeferredDecal), "Awake"),
+                prefix: new HarmonyMethod(typeof(HalloweenShaderRebind), nameof(BeforeDecalAwake)));
             Plugin.Log.LogInfo("[Halloween] shader rebind armed");
+        }
+
+        static int _decalsRebound;
+
+        // A deferred decal is not a renderer: StaticDeferredDecalRenderer copies its material when it registers, which is
+        // before sceneLoaded fires, so it is rebound here. On the bundle's copy of the decal shader the event's decals drew
+        // translucent purple patches over classic geometry (the pallet by the main hall stairs, 2026-11-27).
+        static void BeforeDecalAwake(StaticDeferredDecal __instance)
+        {
+            try
+            {
+                if (__instance.gameObject.scene.name.StartsWith(FactoryScenes.HalloweenScene, StringComparison.Ordinal)
+                    && Rebind(__instance._material, new HashSet<string>())) _decalsRebound++;
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogError($"[Halloween] decal shader rebind failed: {e}");
+            }
         }
 
         static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -31,7 +52,8 @@ namespace FactoryClassic.Client
                     foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
                         foreach (var material in renderer.sharedMaterials)
                             if (Rebind(material, missing)) rebound++;
-                Report(scene.name, rebound, missing);
+                Report(scene.name, rebound + _decalsRebound, missing);
+                _decalsRebound = 0;
             }
             catch (Exception e)
             {
