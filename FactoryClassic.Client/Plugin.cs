@@ -38,6 +38,7 @@ namespace FactoryClassic.Client
             Safe(nameof(HalloweenShaderRebind), HalloweenShaderRebind.Install);
             Safe(nameof(HalloweenRegistry), HalloweenRegistry.Install);
             Safe(nameof(AmbientPlayerRepair), AmbientPlayerRepair.Install);
+            Safe(nameof(HalloweenWireSound), HalloweenWireSound.Install);
             Safe(nameof(HalloweenMixer), HalloweenMixer.Install);
             Safe(nameof(CameraEffectsRepair), CameraEffectsRepair.Install);
             Safe(nameof(CameraInventory), CameraInventory.Install);
